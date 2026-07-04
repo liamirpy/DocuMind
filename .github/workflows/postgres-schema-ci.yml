@@ -43,6 +43,7 @@ jobs:
           sudo apt install -y postgresql-client
 
       - name: Validate docker-compose.yml
+        working-directory: postgreSQL
         run: docker compose config
 
       - name: Wait for PostgreSQL
@@ -58,6 +59,7 @@ jobs:
           exit 1
 
       - name: Apply schema
+        working-directory: postgreSQL
         run: |
           PGPASSWORD="$POSTGRES_PASSWORD" psql \
             -h localhost \
