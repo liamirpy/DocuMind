@@ -1,0 +1,127 @@
+name: PostgreSQL Schema CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+
+jobs:
+  schema-check:
+    name: Validate schema.sql on PostgreSQL 16
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: documind
+          POSTGRES_PASSWORD: ci_documind_password
+          POSTGRES_DB: documind_postgresql
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U documind -d documind_postgresql"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      POSTGRES_USER: documind
+      POSTGRES_PASSWORD: ci_documind_password
+      POSTGRES_DB: documind_postgresql
+      PG_PORT: 5432
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt update
+          sudo apt install -y postgresql-client
+
+      - name: Validate docker-compose.yml
+        run: docker compose config
+
+      - name: Wait for PostgreSQL
+        run: |
+          for i in {1..30}; do
+            if PGPASSWORD="$POSTGRES_PASSWORD" pg_isready -h localhost -p "$PG_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB"; then
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "PostgreSQL was not ready in time"
+          exit 1
+
+      - name: Apply schema
+        run: |
+          PGPASSWORD="$POSTGRES_PASSWORD" psql \
+            -h localhost \
+            -p "$PG_PORT" \
+            -U "$POSTGRES_USER" \
+            -d "$POSTGRES_DB" \
+            -v ON_ERROR_STOP=1 \
+            -f ./schema.sql
+
+      - name: Check required tables exist
+        run: |
+          PGPASSWORD="$POSTGRES_PASSWORD" psql \
+            -h localhost \
+            -p "$PG_PORT" \
+            -U "$POSTGRES_USER" \
+            -d "$POSTGRES_DB" \
+            -v ON_ERROR_STOP=1 \
+            -c "
+              SELECT table_name
+              FROM information_schema.tables
+              WHERE table_schema = 'public'
+                AND table_name IN (
+                  'users',
+                  'documents',
+                  'folders',
+                  'folder_documents',
+                  'document_processing_jobs',
+                  'document_chunks',
+                  'conversations',
+                  'messages',
+                  'message_sources',
+                  'user_sessions'
+                )
+              ORDER BY table_name;
+            "
+
+      - name: Check required table count
+        run: |
+          TABLE_COUNT=$(PGPASSWORD="$POSTGRES_PASSWORD" psql \
+            -h localhost \
+            -p "$PG_PORT" \
+            -U "$POSTGRES_USER" \
+            -d "$POSTGRES_DB" \
+            -tAc "
+              SELECT count(*)
+              FROM information_schema.tables
+              WHERE table_schema = 'public'
+                AND table_name IN (
+                  'users',
+                  'documents',
+                  'folders',
+                  'folder_documents',
+                  'document_processing_jobs',
+                  'document_chunks',
+                  'conversations',
+                  'messages',
+                  'message_sources',
+                  'user_sessions'
+                );
+            ")
+
+          if [ "$TABLE_COUNT" != "10" ]; then
+            echo "Expected 10 required tables, got $TABLE_COUNT"
+            exit 1
+          fi
+
+          echo "All required tables exist."
