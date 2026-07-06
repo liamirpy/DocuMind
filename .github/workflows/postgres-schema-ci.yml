@@ -43,6 +43,7 @@ jobs:
           sudo apt install -y postgresql-client
 
       - name: Validate docker-compose.yml
+        working-directory: ./backend-api
         run: docker compose config
 
       - name: Wait for PostgreSQL
@@ -58,6 +59,7 @@ jobs:
           exit 1
 
       - name: Apply schema
+        working-directory: ./backend-api
         run: |
           PGPASSWORD="$POSTGRES_PASSWORD" psql \
             -h localhost \
@@ -68,6 +70,7 @@ jobs:
             -f ./schema.sql
 
       - name: Check required tables exist
+        working-directory: ./backend-api
         run: |
           PGPASSWORD="$POSTGRES_PASSWORD" psql \
             -h localhost \
@@ -95,6 +98,7 @@ jobs:
             "
 
       - name: Check required table count
+        working-directory: ./backend-api
         run: |
           TABLE_COUNT=$(PGPASSWORD="$POSTGRES_PASSWORD" psql \
             -h localhost \
