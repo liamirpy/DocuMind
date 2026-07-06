@@ -1,4 +1,4 @@
-name: PostgreSQL Schema CI
+name: Backend CI
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
   pull_request:
 
 jobs:
-  schema-check:
-    name: Validate schema.sql on PostgreSQL 16
+  backend-check:
+    name: Test backend with PostgreSQL
     runs-on: ubuntu-latest
 
     services:
@@ -28,28 +28,37 @@ jobs:
           --health-retries 20
 
     env:
-      POSTGRES_USER: documind
-      POSTGRES_PASSWORD: ci_documind_password
-      POSTGRES_DB: documind_postgresql
-      PG_PORT: 5432
+      PORT: 8000
+      DB_HOST: localhost
+      DB_PORT: 5432
+      DB_USER: documind
+      DB_PASSWORD: ci_documind_password
+      DB_NAME: documind_postgresql
+      JWT_SECRET: ci_test_jwt_secret_do_not_use_in_production
+      SESSION_DAYS: 7
+      UPLOAD_DIR: src/uploads
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend-api/package-lock.json
 
       - name: Install PostgreSQL client
         run: |
           sudo apt update
           sudo apt install -y postgresql-client
 
-      - name: Validate docker-compose.yml
-        working-directory: postgreSQL
-        run: docker compose config
-
       - name: Wait for PostgreSQL
         run: |
           for i in {1..30}; do
-            if PGPASSWORD="$POSTGRES_PASSWORD" pg_isready -h localhost -p "$PG_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB"; then
+            if PGPASSWORD="$DB_PASSWORD" pg_isready -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME"; then
+              echo "PostgreSQL is ready"
               exit 0
             fi
             sleep 2
@@ -58,72 +67,56 @@ jobs:
           echo "PostgreSQL was not ready in time"
           exit 1
 
-      - name: Apply schema
+      - name: Apply database schema
         working-directory: postgreSQL
         run: |
-          PGPASSWORD="$POSTGRES_PASSWORD" psql \
-            -h localhost \
-            -p "$PG_PORT" \
-            -U "$POSTGRES_USER" \
-            -d "$POSTGRES_DB" \
+          PGPASSWORD="$DB_PASSWORD" psql \
+            -h "$DB_HOST" \
+            -p "$DB_PORT" \
+            -U "$DB_USER" \
+            -d "$DB_NAME" \
             -v ON_ERROR_STOP=1 \
             -f ./schema.sql
 
-      - name: Check required tables exist
+      - name: Install backend dependencies
+        working-directory: backend-api
+        run: npm ci
+
+      - name: Create upload directory
+        working-directory: backend-api
+        run: mkdir -p src/uploads
+
+      - name: Start backend server
+        working-directory: backend-api
         run: |
-          PGPASSWORD="$POSTGRES_PASSWORD" psql \
-            -h localhost \
-            -p "$PG_PORT" \
-            -U "$POSTGRES_USER" \
-            -d "$POSTGRES_DB" \
-            -v ON_ERROR_STOP=1 \
-            -c "
-              SELECT table_name
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-                AND table_name IN (
-                  'users',
-                  'documents',
-                  'folders',
-                  'folder_documents',
-                  'document_processing_jobs',
-                  'document_chunks',
-                  'conversations',
-                  'messages',
-                  'message_sources',
-                  'user_sessions'
-                )
-              ORDER BY table_name;
-            "
+          npm start > server.log 2>&1 &
+          echo $! > server.pid
 
-      - name: Check required table count
+      - name: Wait for backend
         run: |
-          TABLE_COUNT=$(PGPASSWORD="$POSTGRES_PASSWORD" psql \
-            -h localhost \
-            -p "$PG_PORT" \
-            -U "$POSTGRES_USER" \
-            -d "$POSTGRES_DB" \
-            -tAc "
-              SELECT count(*)
-              FROM information_schema.tables
-              WHERE table_schema = 'public'
-                AND table_name IN (
-                  'users',
-                  'documents',
-                  'folders',
-                  'folder_documents',
-                  'document_processing_jobs',
-                  'document_chunks',
-                  'conversations',
-                  'messages',
-                  'message_sources',
-                  'user_sessions'
-                );
-            ")
+          for i in {1..30}; do
+            if curl -fsS http://localhost:8000/; then
+              echo "Backend is ready"
+              exit 0
+            fi
+            sleep 2
+          done
 
-          if [ "$TABLE_COUNT" != "10" ]; then
-            echo "Expected 10 required tables, got $TABLE_COUNT"
-            exit 1
-          fi
+          echo "Backend did not start in time"
+          cat backend-api/server.log
+          exit 1
 
-          echo "All required tables exist."
+      - name: Test register endpoint
+        run: |
+          curl -fsS -X POST http://localhost:8000/api/auth/register \
+            -H "Content-Type: application/json" \
+            -d '{
+              "firstname": "CI",
+              "lastname": "User",
+              "email": "ci-user@example.com",
+              "password": "password123"
+            }'
+
+      - name: Show server logs if needed
+        if: always()
+        run: cat backend-api/server.log
