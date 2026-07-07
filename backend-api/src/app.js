@@ -1,7 +1,10 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { errorMiddleware } from "./middleware/errorMiddleware.js";
 import authRoutes from "./routes/authRoutes.js"
+import folderRoutes from "./routes/folderRoutes.js";
+import documentRoutes from "./routes/documentRoutes.js";
 const app = express();
 
 app.use(cors({
@@ -20,7 +23,13 @@ app.get('/api/health',(req,res)=>{
     })
 })
 
+app.use(express.json());
+app.use(cookieParser());
+
 app.use('/api/auth',authRoutes)
+app.use("/api/folders", folderRoutes);
+app.use("/api/documents", documentRoutes);
+
 
 app.use(errorMiddleware);
 
