@@ -43,6 +43,7 @@ jobs:
         run: python -m compileall -q app tests
 
       - name: Validate Compose files
+        working-directory: ./pdf-analyser/tools
         run: |
           cp .env.example .env
           docker compose -f docker-compose.yml config --quiet
