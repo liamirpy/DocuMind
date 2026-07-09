@@ -1,6 +1,9 @@
 name: PDF-analyser GPU integration smoke test
 
 on:
+  push:
+    branches: [main]
+    
   workflow_dispatch:
 
 permissions:
