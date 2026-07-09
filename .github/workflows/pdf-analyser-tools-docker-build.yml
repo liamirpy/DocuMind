@@ -3,7 +3,7 @@ name: PDF-analyser tools Docker build
 on:
   pull_request:
     paths:
-      - "/pdf-analyser/tools/api/**"
+      - "pdf-analyser/tools/api/**"
       - "docker-compose*.yml"
       - ".github/workflows/docker-build.yml"
   push:
