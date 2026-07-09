@@ -1,0 +1,12 @@
+.git
+.github
+.env
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+data
+output
+result*.json
+*.pdf
+!tests/fixtures/*.pdf

@@ -1,0 +1,49 @@
+name: PDF-analyser-CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  unit-and-static:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            api/requirements-base.txt
+            api/requirements-dev.txt
+
+      - name: Install lightweight test dependencies
+        working-directory: ./pdf-analyser/tools/api
+        run: python -m pip install -r requirements-dev.txt
+
+      - name: Ruff lint
+        working-directory: ./pdf-analyser/tools/api
+        run: ruff check .
+
+      - name: Ruff format check
+        working-directory: ./pdf-analyser/tools/api
+        run: ruff format --check .
+
+      - name: Unit tests
+        working-directory: ./pdf-analyser/tools/api
+        run: pytest --cov=app --cov-report=term-missing
+
+      - name: Compile Python sources
+        working-directory: ./pdf-analyser/tools/api
+        run: python -m compileall -q app tests
+
+      - name: Validate Compose files
+        run: |
+          cp .env.example .env
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.yml -f docker-compose.gpu.yml config --quiet

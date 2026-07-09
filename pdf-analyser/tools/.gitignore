@@ -1,0 +1,21 @@
+.env
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+.venv/
+.idea/
+.vscode/
+
+# Runtime data and user PDFs
+data/assets/*
+!data/assets/.gitkeep
+output/
+*.pdf
+!tests/fixtures/*.pdf
+
+# Local result files
+result*.json
+*.log

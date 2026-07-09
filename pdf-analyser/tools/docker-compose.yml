@@ -1,0 +1,102 @@
+name: ${COMPOSE_PROJECT_NAME:-pdf-extraction}
+
+services:
+  grobid:
+    image: ${GROBID_IMAGE:-grobid/grobid:0.8.2}
+    init: true
+    ulimits:
+      core: 0
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "${GROBID_BIND_HOST:-127.0.0.1}:${GROBID_PORT:-8086}:8070"
+      - "${GROBID_BIND_HOST:-127.0.0.1}:${GROBID_ADMIN_PORT:-8085}:8071"
+    volumes:
+      - ./grobid.yaml:/opt/grobid/grobid-home/config/grobid.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/8070; printf 'GET /api/isalive HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3; grep -q true <&3",
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 180s
+
+  extractor-api:
+    image: ${EXTRACTOR_CPU_IMAGE:-pdf-extractor-api:cpu-local}
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+      args:
+        TORCH_INDEX_URL: ${PYTORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}
+        TORCH_VERSION: ${PYTORCH_VERSION:-2.11.0}
+        TORCHVISION_VERSION: ${TORCHVISION_VERSION:-0.26.0}
+    init: true
+    depends_on:
+      grobid:
+        condition: service_healthy
+    environment:
+      APP_NAME: ${APP_NAME:-Scientific PDF Extraction API}
+      APP_VERSION: ${APP_VERSION:-0.2.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+      SERVE_ASSETS: ${SERVE_ASSETS:-true}
+      ASSETS_DIR: /data/assets
+      ASSETS_URL_PREFIX: ${ASSETS_URL_PREFIX:-/assets}
+
+      GROBID_BASE_URL: ${GROBID_BASE_URL:-http://grobid:8070}
+      GROBID_TIMEOUT_SECONDS: ${GROBID_TIMEOUT_SECONDS:-300}
+      GROBID_MAX_RETRIES: ${GROBID_MAX_RETRIES:-2}
+      GROBID_TEI_COORDINATES: ${GROBID_TEI_COORDINATES:-persName,figure,ref,biblStruct,formula,s,p,title,affiliation,note}
+
+      DOCLING_PRELOAD_ON_STARTUP: ${DOCLING_PRELOAD_ON_STARTUP:-true}
+      DOCLING_MAX_NUM_PAGES: ${DOCLING_MAX_NUM_PAGES:-300}
+      DOCLING_MAX_CONCURRENCY: ${DOCLING_MAX_CONCURRENCY:-1}
+      DOCLING_DOCUMENT_TIMEOUT_SECONDS: ${DOCLING_DOCUMENT_TIMEOUT_SECONDS:-1800}
+      DOCLING_ACCELERATOR_DEVICE: ${DOCLING_ACCELERATOR_DEVICE:-cpu}
+      DOCLING_ACCELERATOR_NUM_THREADS: ${DOCLING_ACCELERATOR_NUM_THREADS:-4}
+      DOCLING_OCR_BACKEND: ${DOCLING_OCR_BACKEND:-onnxruntime}
+      DOCLING_DO_OCR: ${DOCLING_DO_OCR:-true}
+      DOCLING_OCR_FORCE_FULL_PAGE: ${DOCLING_OCR_FORCE_FULL_PAGE:-false}
+      DOCLING_OCR_BITMAP_AREA_THRESHOLD: ${DOCLING_OCR_BITMAP_AREA_THRESHOLD:-0.05}
+      DOCLING_DO_TABLE_STRUCTURE: ${DOCLING_DO_TABLE_STRUCTURE:-true}
+      DOCLING_TABLE_MODE: ${DOCLING_TABLE_MODE:-accurate}
+      DOCLING_TABLE_DO_CELL_MATCHING: ${DOCLING_TABLE_DO_CELL_MATCHING:-true}
+      DOCLING_DO_FORMULA_ENRICHMENT: ${DOCLING_DO_FORMULA_ENRICHMENT:-true}
+      DOCLING_GENERATE_PAGE_IMAGES: ${DOCLING_GENERATE_PAGE_IMAGES:-true}
+      DOCLING_GENERATE_PICTURE_IMAGES: ${DOCLING_GENERATE_PICTURE_IMAGES:-true}
+      DOCLING_IMAGES_SCALE: ${DOCLING_IMAGES_SCALE:-2.0}
+      DOCLING_EXPORT_PICTURES: ${DOCLING_EXPORT_PICTURES:-true}
+      DOCLING_EXPORT_TABLES: ${DOCLING_EXPORT_TABLES:-true}
+
+      OMP_NUM_THREADS: ${DOCLING_ACCELERATOR_NUM_THREADS:-4}
+      HF_HOME: /models/huggingface
+      TORCH_HOME: /models/torch
+      XDG_CACHE_HOME: /models/xdg
+    ports:
+      - "${API_BIND_HOST:-0.0.0.0}:${API_PORT:-8090}:8000"
+    volumes:
+      - docling-model-cache:/models
+      - ${ASSETS_HOST_DIR:-./data/assets}:/data/assets
+    shm_size: "2gb"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 900s
+
+volumes:
+  docling-model-cache:
