@@ -35,6 +35,11 @@ jobs:
 
     timeout-minutes: 30
 
+    defaults:
+      run:
+        working-directory: ./indexer 
+  
+
 
     steps:
 
