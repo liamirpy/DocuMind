@@ -1,0 +1,1 @@
+Y n at H i, W i, C n equals the sum over K i and K j of X n multiplied by F n.

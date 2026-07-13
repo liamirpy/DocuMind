@@ -1,0 +1,198 @@
+name: ${COMPOSE_PROJECT_NAME:-pdf-analyser}
+
+services:
+  grobid:
+    image: ${GROBID_IMAGE:-grobid/grobid:0.8.2}
+    init: true
+    ulimits:
+      core: 0
+    ports:
+      - "${GROBID_BIND_HOST:-127.0.0.1}:${GROBID_PORT:-8086}:8070"
+      - "${GROBID_BIND_HOST:-127.0.0.1}:${GROBID_ADMIN_PORT:-8085}:8071"
+    volumes:
+      - ./tools/grobid.yaml:/opt/grobid/grobid-home/config/grobid.yaml:ro
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "bash",
+          "-c",
+          "exec 3<>/dev/tcp/127.0.0.1/8070; printf 'GET /api/isalive HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3; grep -q true <&3",
+        ]
+      interval: 20s
+      timeout: 10s
+      retries: 30
+      start_period: 180s
+
+  extractor-api:
+    image: ${EXTRACTOR_CPU_IMAGE:-pdf-analyser-extractor:0.3.0-cpu}
+    build:
+      context: ./tools/api
+      dockerfile: Dockerfile
+      args:
+        TORCH_INDEX_URL: ${PYTORCH_CPU_INDEX_URL:-https://download.pytorch.org/whl/cpu}
+        TORCH_VERSION: ${PYTORCH_VERSION:-2.11.0}
+        TORCHVISION_VERSION: ${TORCHVISION_VERSION:-0.26.0}
+    init: true
+    depends_on:
+      grobid:
+        condition: service_healthy
+    environment:
+      APP_NAME: ${TOOLS_APP_NAME:-Scientific PDF Extraction API}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+      SERVE_ASSETS: "true"
+      ASSETS_DIR: /data/assets
+      ASSETS_URL_PREFIX: /assets
+
+      GROBID_BASE_URL: http://grobid:8070
+      GROBID_TIMEOUT_SECONDS: ${GROBID_TIMEOUT_SECONDS:-300}
+      GROBID_MAX_RETRIES: ${GROBID_MAX_RETRIES:-2}
+      GROBID_TEI_COORDINATES: ${GROBID_TEI_COORDINATES:-persName,figure,ref,biblStruct,formula,s,p,title,affiliation,note}
+
+      DOCLING_PRELOAD_ON_STARTUP: ${DOCLING_PRELOAD_ON_STARTUP:-true}
+      DOCLING_MAX_NUM_PAGES: ${DOCLING_MAX_NUM_PAGES:-300}
+      DOCLING_MAX_CONCURRENCY: ${DOCLING_MAX_CONCURRENCY:-1}
+      DOCLING_DOCUMENT_TIMEOUT_SECONDS: ${DOCLING_DOCUMENT_TIMEOUT_SECONDS:-1800}
+      DOCLING_ACCELERATOR_DEVICE: ${DOCLING_ACCELERATOR_DEVICE:-cpu}
+      DOCLING_ACCELERATOR_NUM_THREADS: ${DOCLING_ACCELERATOR_NUM_THREADS:-4}
+      DOCLING_OCR_BACKEND: ${DOCLING_OCR_BACKEND:-onnxruntime}
+      DOCLING_DO_OCR: ${DOCLING_DO_OCR:-true}
+      DOCLING_OCR_FORCE_FULL_PAGE: ${DOCLING_OCR_FORCE_FULL_PAGE:-false}
+      DOCLING_OCR_BITMAP_AREA_THRESHOLD: ${DOCLING_OCR_BITMAP_AREA_THRESHOLD:-0.05}
+      DOCLING_DO_TABLE_STRUCTURE: ${DOCLING_DO_TABLE_STRUCTURE:-true}
+      DOCLING_TABLE_MODE: ${DOCLING_TABLE_MODE:-accurate}
+      DOCLING_TABLE_DO_CELL_MATCHING: ${DOCLING_TABLE_DO_CELL_MATCHING:-true}
+      DOCLING_DO_FORMULA_ENRICHMENT: ${DOCLING_DO_FORMULA_ENRICHMENT:-true}
+      DOCLING_GENERATE_PAGE_IMAGES: ${DOCLING_GENERATE_PAGE_IMAGES:-true}
+      DOCLING_GENERATE_PICTURE_IMAGES: ${DOCLING_GENERATE_PICTURE_IMAGES:-true}
+      DOCLING_IMAGES_SCALE: ${DOCLING_IMAGES_SCALE:-2.0}
+      DOCLING_EXPORT_PICTURES: ${DOCLING_EXPORT_PICTURES:-true}
+      DOCLING_EXPORT_TABLES: ${DOCLING_EXPORT_TABLES:-true}
+
+      OMP_NUM_THREADS: ${DOCLING_ACCELERATOR_NUM_THREADS:-4}
+      HF_HOME: /models/huggingface
+      TORCH_HOME: /models/torch
+      XDG_CACHE_HOME: /models/xdg
+    ports:
+      - "${TOOLS_BIND_HOST:-127.0.0.1}:${TOOLS_PORT:-8090}:8000"
+    volumes:
+      - docling-model-cache:/models
+      - extraction-assets:/data/assets
+    shm_size: "2gb"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/health/ready', timeout=20)",
+        ]
+      interval: 30s
+      timeout: 25s
+      retries: 10
+      start_period: 900s
+
+  ollama:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_SERVER_KEEP_ALIVE:-0}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 10s
+      retries: 30
+      start_period: 20s
+
+  ollama-model-init:
+    image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama"]
+    command: ["pull", "${OLLAMA_MODEL:-qwen2.5vl:3b}"]
+    restart: "no"
+
+  agent-api:
+    image: ${AGENT_IMAGE:-pdf-analyser-agent:0.3.0}
+    build:
+      context: ./agent
+      dockerfile: Dockerfile
+    init: true
+    depends_on:
+      extractor-api:
+        condition: service_healthy
+      ollama-model-init:
+        condition: service_completed_successfully
+    environment:
+      APP_NAME: ${AGENT_APP_NAME:-PDF Canonicalization Agent}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+      MAX_CONCURRENCY: ${MAX_CONCURRENCY:-1}
+
+      TOOLS_BASE_URL: http://extractor-api:8000
+      TOOLS_TIMEOUT_SECONDS: ${TOOLS_TIMEOUT_SECONDS:-1800}
+      TOOLS_VERIFY_TLS: "false"
+
+      OUTPUT_DIR: /data/outputs
+      PACKAGES_URL_PREFIX: ${PACKAGES_URL_PREFIX:-/packages}
+      KEEP_RAW_EXTRACTOR_RESPONSE: ${KEEP_RAW_EXTRACTOR_RESPONSE:-false}
+      OVERWRITE_EXISTING_PACKAGE: ${OVERWRITE_EXISTING_PACKAGE:-false}
+      CREATE_ZIP_PACKAGE: ${CREATE_ZIP_PACKAGE:-true}
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+
+      FORMULA_CROP_SCALE: ${FORMULA_CROP_SCALE:-3.0}
+      FORMULA_CROP_PADDING_POINTS: ${FORMULA_CROP_PADDING_POINTS:-8.0}
+      FALLBACK_ASSET_CROP_SCALE: ${FALLBACK_ASSET_CROP_SCALE:-2.5}
+      FALLBACK_ASSET_CROP_PADDING_POINTS: ${FALLBACK_ASSET_CROP_PADDING_POINTS:-5.0}
+
+      LLM_ENABLED: ${LLM_ENABLED:-true}
+      OLLAMA_BASE_URL: http://ollama:11434
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5vl:3b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-600}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_REQUEST_KEEP_ALIVE:-0}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE:-0.0}
+      LLM_VALIDATE_ALL_FIGURES: ${LLM_VALIDATE_ALL_FIGURES:-false}
+      LLM_DESCRIBE_ALL_ELEMENTS: ${LLM_DESCRIBE_ALL_ELEMENTS:-true}
+      LLM_REPAIR_EMPTY_TABLES: ${LLM_REPAIR_EMPTY_TABLES:-true}
+      LLM_REPAIR_UNCERTAIN_FORMULAS: ${LLM_REPAIR_UNCERTAIN_FORMULAS:-true}
+      LLM_MAX_ITEMS_PER_DOCUMENT: ${LLM_MAX_ITEMS_PER_DOCUMENT:-500}
+
+      QUALITY_GREEN_THRESHOLD: ${QUALITY_GREEN_THRESHOLD:-0.90}
+      QUALITY_YELLOW_THRESHOLD: ${QUALITY_YELLOW_THRESHOLD:-0.65}
+    ports:
+      - "${AGENT_BIND_HOST:-127.0.0.1}:${AGENT_PORT:-8100}:8100"
+    volumes:
+      - type: bind
+        source: ${OUTPUT_DIR:-./outputs}
+        target: /data/outputs
+        bind:
+          create_host_path: true
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8100/health/ready', timeout=20)",
+        ]
+      interval: 30s
+      timeout: 25s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  docling-model-cache:
+  extraction-assets:
+  ollama-models:

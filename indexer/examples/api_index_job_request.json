@@ -1,0 +1,9 @@
+{
+  "user_id": "user_123",
+  "document_id": "doc_456",
+  "input_directory": "/srv/DocuMind/VRU_without_LLM",
+  "output_directory": "/srv/DocuMind/indexer-output/doc_456",
+  "output_filename": "chunks.json",
+  "skip_embedding": false,
+  "overwrite": false
+}

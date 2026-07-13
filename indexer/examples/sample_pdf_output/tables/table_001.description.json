@@ -1,0 +1,17 @@
+{
+  "text": "This table compares the distribution of lesions in different categories across two groups labeled as Data.",
+  "summary": "The data shows different lesion distributions across left, right, unilateral, bilateral, and other categories.",
+  "element_type": "table",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 1.0,
+  "warnings": [],
+  "details": {
+    "key_observations": [
+      "The percentage distribution varies between different lesion types.",
+      "There is a notable difference in percentages across left and right sides."
+    ],
+    "visible_headers": ["One Lesion", "Multiple Lesions"]
+  }
+}

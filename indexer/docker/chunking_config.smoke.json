@@ -1,0 +1,75 @@
+{
+  "chunker_version": "hierarchical-assets-v3-smoke",
+  "package_assets": {
+    "prefer_sidecar_files": true,
+    "infer_standard_sidecar_paths": true,
+    "canonical_filename": "canonical_document.json"
+  },
+  "text": {
+    "parent": {
+      "enabled": true,
+      "target_tokens": 120,
+      "max_tokens": 180,
+      "overlap_tokens": 0
+    },
+    "child": {
+      "enabled": true,
+      "target_tokens": 60,
+      "max_tokens": 90,
+      "overlap_tokens": 10
+    },
+    "parent_retrieval_enabled": false,
+    "child_retrieval_enabled": true
+  },
+  "special_elements": {
+    "enabled": true,
+    "max_tokens": 800,
+    "oversize_policy": "allow",
+    "include_caption": true,
+    "include_description_text": true,
+    "include_summary": true,
+    "include_description_details": true,
+    "include_table_data": true,
+    "include_table_latex": false,
+    "include_formula_latex": true,
+    "include_formula_text": true,
+    "retrieval_enabled": true
+  },
+  "references": {
+    "enabled": true,
+    "exclude_reference_sections_from_text_chunks": true,
+    "section_names": [
+      "reference",
+      "references",
+      "bibliography",
+      "works cited",
+      "literature cited",
+      "cited references"
+    ],
+    "retrieval_enabled": false,
+    "generate_retrieval_text": false,
+    "include_raw_text": true,
+    "include_structured_metadata": true
+  },
+  "embedding": {
+    "enabled": true,
+    "provider": "development_hash",
+    "model_name": "development-hash-v1",
+    "selection": "retrieval_enabled",
+    "batch_size": 8,
+    "device": "cpu",
+    "normalize_embeddings": true,
+    "use_document_encoder": true,
+    "use_query_encoder": true,
+    "show_progress_bar": false,
+    "cache_folder": null,
+    "revision": null,
+    "trust_remote_code": false,
+    "local_files_only": true,
+    "expected_dimensions": 32,
+    "max_sequence_length": null,
+    "max_input_tokens": null,
+    "overlong_policy": "error",
+    "development_hash_dimensions": 32
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "text": "The formula is a convolution-like expression involving summations over spatial and kernel indices.",
+  "summary": "The formula calculates a weighted sum of products between input values and filter values.",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "visible_structure": [
+      "Y_n[H_i, W_i, C_n] is defined by sums over K_i and K_j",
+      "X_n[H_i + K_i, W_i + K_j, C_n] is multiplied by F_n[K_i, K_j, D_n]"
+    ],
+    "symbols": [
+      {"symbol": "Y", "visible_role": "output variable"},
+      {"symbol": "X", "visible_role": "input function"},
+      {"symbol": "F", "visible_role": "filter function"}
+    ]
+  }
+}

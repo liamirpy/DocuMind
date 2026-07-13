@@ -1,0 +1,42 @@
+services:
+  opensearch:
+    image: opensearchproject/opensearch:3.7.0
+
+    container_name: documind-opensearch
+
+    environment:
+      - cluster.name=documind-cluster
+      - node.name=documind-node
+
+      # Run only one OpenSearch node
+      - discovery.type=single-node
+
+      # Local development only
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+
+      # Java memory
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+
+      # Prevent memory swapping
+      - bootstrap.memory_lock=true
+
+    ports:
+      - "9200:9200"
+      - "9600:9600"
+
+    volumes:
+      # Left side: directory on your PC
+      # Right side: OpenSearch data directory in the container
+      - /srv/documind_database/opensearch:/usr/share/opensearch/data
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    restart: unless-stopped

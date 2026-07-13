@@ -1,0 +1,75 @@
+{
+  "chunker_version": "hierarchical-assets-v3",
+  "package_assets": {
+    "prefer_sidecar_files": true,
+    "infer_standard_sidecar_paths": true,
+    "canonical_filename": "canonical_document.json"
+  },
+  "text": {
+    "parent": {
+      "enabled": true,
+      "target_tokens": 900,
+      "max_tokens": 1100,
+      "overlap_tokens": 0
+    },
+    "child": {
+      "enabled": true,
+      "target_tokens": 300,
+      "max_tokens": 420,
+      "overlap_tokens": 50
+    },
+    "parent_retrieval_enabled": false,
+    "child_retrieval_enabled": true
+  },
+  "special_elements": {
+    "enabled": true,
+    "max_tokens": 1800,
+    "oversize_policy": "allow",
+    "include_caption": true,
+    "include_description_text": true,
+    "include_summary": true,
+    "include_description_details": true,
+    "include_table_data": true,
+    "include_table_latex": false,
+    "include_formula_latex": true,
+    "include_formula_text": true,
+    "retrieval_enabled": true
+  },
+  "references": {
+    "enabled": true,
+    "exclude_reference_sections_from_text_chunks": true,
+    "section_names": [
+      "reference",
+      "references",
+      "bibliography",
+      "works cited",
+      "literature cited",
+      "cited references"
+    ],
+    "retrieval_enabled": false,
+    "generate_retrieval_text": false,
+    "include_raw_text": true,
+    "include_structured_metadata": true
+  },
+  "embedding": {
+    "enabled": true,
+    "provider": "sentence_transformers",
+    "model_name": "BAAI/bge-m3",
+    "selection": "retrieval_enabled",
+    "batch_size": 8,
+    "device": "auto",
+    "normalize_embeddings": true,
+    "use_document_encoder": true,
+    "use_query_encoder": true,
+    "show_progress_bar": true,
+    "cache_folder": "/models/huggingface",
+    "revision": null,
+    "trust_remote_code": false,
+    "local_files_only": true,
+    "expected_dimensions": 1024,
+    "max_sequence_length": null,
+    "max_input_tokens": null,
+    "overlong_policy": "error",
+    "development_hash_dimensions": 32
+  }
+}

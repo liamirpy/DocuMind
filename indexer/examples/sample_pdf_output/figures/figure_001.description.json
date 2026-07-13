@@ -1,0 +1,15 @@
+{
+  "text": "Registration → Pre-test → VR training → Post-test",
+  "summary": "The figure shows the four stages of the VR training process.",
+  "element_type": "figure",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "figure_type": "workflow",
+    "visible_text": ["Registration", "Pre-test", "VR training", "Post-test"],
+    "key_observations": ["The workflow contains four sequential stages."]
+  }
+}

@@ -1229,35 +1229,3 @@ make smoke
 make clean
 ```
 
-
-
-
-### GPU
-
-docker compose \
-  -f docker-compose.yml \
-  -f docker-compose.gpu.yml \
-  up -d --build
-
-
-
-curl --fail --show-error \
-  -X POST \
-  "http://localhost:8090/v1/extract" \
-  -H "accept: application/json" \
-  -F "file=@./2.pdf;type=application/pdf" \
-  -F "include_docling_markdown=true" \
-  -F "include_docling_json=true" \
-  -F "include_grobid_tei=true" \
-  -F "export_picture_images=true" \
-  -F "export_table_images=true" \
-  -F "grobid_consolidate_header=0" \
-  -F "grobid_consolidate_citations=0" \
-  -o result.json
-
-
-jq . result.json \
-  > result.pretty.json
-
-
-

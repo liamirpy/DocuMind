@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import time
 from pathlib import Path
 from typing import Any
@@ -8,9 +9,11 @@ import httpx
 from app.config import Settings
 from app.parsers.tei import parse_tei
 
+logger = logging.getLogger(__name__)
+
 
 class GrobidServiceError(RuntimeError):
-    pass
+    """Raised when GROBID processing fails."""
 
 
 class GrobidService:
@@ -19,7 +22,9 @@ class GrobidService:
         self._client = httpx.AsyncClient(
             base_url=settings.grobid_base_url,
             timeout=httpx.Timeout(settings.grobid_timeout_seconds),
-            headers={"Accept": "application/xml"},
+            # Internal Compose traffic must not be redirected through host proxy
+            # variables. Content negotiation is set per endpoint below.
+            trust_env=False,
         )
         self._version: str | None = None
 
@@ -27,20 +32,50 @@ class GrobidService:
         await self._client.aclose()
 
     async def is_alive(self) -> bool:
+        """Return True only when GROBID's dedicated liveness endpoint says true."""
+
         try:
-            response = await self._client.get("/api/isalive", timeout=10.0)
-            return response.status_code == 200 and response.text.strip().lower() == "true"
-        except httpx.HTTPError:
+            response = await self._client.get(
+                "/api/isalive",
+                timeout=10.0,
+                headers={"Accept": "text/plain"},
+            )
+            response.raise_for_status()
+            alive = response.text.strip().lower() == "true"
+            if not alive:
+                logger.warning(
+                    "Unexpected GROBID /api/isalive response: %r",
+                    response.text,
+                )
+            return alive
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "GROBID health check failed. base_url=%s error=%r",
+                self.settings.grobid_base_url,
+                exc,
+            )
             return False
 
     async def version(self) -> str | None:
+        """Return version metadata without using it as a liveness decision."""
+
         if self._version is not None:
             return self._version
         try:
-            response = await self._client.get("/api/version", timeout=10.0)
+            response = await self._client.get(
+                "/api/version",
+                timeout=10.0,
+                headers={"Accept": "*/*"},
+            )
             response.raise_for_status()
-            self._version = response.text.strip()
-        except httpx.HTTPError:
+            value = response.text.strip()
+            self._version = value or None
+        except httpx.HTTPError as exc:
+            logger.warning(
+                "Could not retrieve GROBID version. base_url=%s error=%r",
+                self.settings.grobid_base_url,
+                exc,
+            )
             self._version = None
         return self._version
 
@@ -112,6 +147,7 @@ class GrobidService:
                     response = await self._client.post(
                         "/api/processFulltextDocument",
                         files=multipart,
+                        headers={"Accept": "application/xml"},
                     )
 
                 if response.status_code in {429, 502, 503, 504}:
@@ -127,6 +163,12 @@ class GrobidService:
                 return response.text
             except (httpx.HTTPError, GrobidServiceError) as exc:
                 last_error = exc
+                logger.warning(
+                    "GROBID extraction attempt %s/%s failed: %r",
+                    attempt,
+                    self.settings.grobid_max_retries,
+                    exc,
+                )
                 if attempt < self.settings.grobid_max_retries:
                     await asyncio.sleep(min(2**attempt, 10))
 

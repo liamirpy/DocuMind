@@ -1,0 +1,66 @@
+name: ${COMPOSE_PROJECT_NAME:-pdf-agent}
+
+services:
+  agent-api:
+    image: ${AGENT_IMAGE:-pdf-canonical-agent:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    init: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      APP_NAME: ${APP_NAME:-PDF Canonicalization Agent}
+      APP_VERSION: ${APP_VERSION:-0.3.0}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
+      MAX_CONCURRENCY: ${MAX_CONCURRENCY:-1}
+
+      TOOLS_BASE_URL: ${TOOLS_BASE_URL:-http://host.docker.internal:8090}
+      TOOLS_TIMEOUT_SECONDS: ${TOOLS_TIMEOUT_SECONDS:-1800}
+      TOOLS_VERIFY_TLS: ${TOOLS_VERIFY_TLS:-true}
+
+      OUTPUT_DIR: /data/outputs
+      PACKAGES_URL_PREFIX: ${PACKAGES_URL_PREFIX:-/packages}
+      KEEP_RAW_EXTRACTOR_RESPONSE: ${KEEP_RAW_EXTRACTOR_RESPONSE:-false}
+      OVERWRITE_EXISTING_PACKAGE: ${OVERWRITE_EXISTING_PACKAGE:-false}
+      CREATE_ZIP_PACKAGE: ${CREATE_ZIP_PACKAGE:-true}
+      HOST_UID: ${HOST_UID:-1000}
+      HOST_GID: ${HOST_GID:-1000}
+
+      FORMULA_CROP_SCALE: ${FORMULA_CROP_SCALE:-3.0}
+      FORMULA_CROP_PADDING_POINTS: ${FORMULA_CROP_PADDING_POINTS:-8.0}
+      FALLBACK_ASSET_CROP_SCALE: ${FALLBACK_ASSET_CROP_SCALE:-2.5}
+      FALLBACK_ASSET_CROP_PADDING_POINTS: ${FALLBACK_ASSET_CROP_PADDING_POINTS:-5.0}
+
+      LLM_ENABLED: ${LLM_ENABLED:-false}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      OLLAMA_MODEL: ${OLLAMA_MODEL:-qwen2.5vl:3b}
+      OLLAMA_TIMEOUT_SECONDS: ${OLLAMA_TIMEOUT_SECONDS:-600}
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:-10m}
+      OLLAMA_TEMPERATURE: ${OLLAMA_TEMPERATURE:-0.0}
+      LLM_VALIDATE_ALL_FIGURES: ${LLM_VALIDATE_ALL_FIGURES:-false}
+      LLM_DESCRIBE_ALL_ELEMENTS: ${LLM_DESCRIBE_ALL_ELEMENTS:-true}
+      LLM_REPAIR_EMPTY_TABLES: ${LLM_REPAIR_EMPTY_TABLES:-true}
+      LLM_REPAIR_UNCERTAIN_FORMULAS: ${LLM_REPAIR_UNCERTAIN_FORMULAS:-true}
+      LLM_MAX_ITEMS_PER_DOCUMENT: ${LLM_MAX_ITEMS_PER_DOCUMENT:-500}
+
+      QUALITY_GREEN_THRESHOLD: ${QUALITY_GREEN_THRESHOLD:-0.90}
+      QUALITY_YELLOW_THRESHOLD: ${QUALITY_YELLOW_THRESHOLD:-0.65}
+    ports:
+      - "${AGENT_BIND_HOST:-0.0.0.0}:${AGENT_PORT:-8100}:8100"
+    volumes:
+      - ${OUTPUT_HOST_DIR:-./data/outputs}:/data/outputs
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8100/health/live', timeout=5)",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 20s

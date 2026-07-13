@@ -1,0 +1,15 @@
+**/.env
+**/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.coverage
+**/htmlcov/
+agent-result.json
+agent/data/outputs/*
+!agent/data/outputs/.gitkeep
+tools/data/assets/*
+!tools/data/assets/.gitkeep
+tools/output/*
+outputs/*
+!outputs/.gitkeep
