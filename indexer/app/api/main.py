@@ -20,8 +20,8 @@ from app.api.models import (
 from app.api.paths import PathResolutionError, resolve_mounted_directory
 from app.api.runtime import IndexerRuntime
 from app.api.security import require_api_key
-from app.api.storage import verify_readable_directory, verify_writable_directory
 from app.api.settings import ApiSettings, get_settings
+from app.api.storage import verify_readable_directory, verify_writable_directory
 
 logger = logging.getLogger(__name__)
 
@@ -107,11 +107,7 @@ def create_app(settings: ApiSettings | None = None) -> FastAPI:
             and cache_root is not None
         )
         cache_ok = not cache_required or cache_root.is_dir()
-        status_value = (
-            "ready"
-            if input_ok and output_ok and jobs_ok and cache_ok
-            else "not_ready"
-        )
+        status_value = "ready" if input_ok and output_ok and jobs_ok and cache_ok else "not_ready"
         if status_value != "ready":
             raise HTTPException(
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
