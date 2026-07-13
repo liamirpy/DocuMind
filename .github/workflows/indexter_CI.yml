@@ -125,108 +125,94 @@ jobs:
             -q \
             app
 
+docker-validation:
+
+  name: Docker validation and image build
+
+  runs-on: ubuntu-latest
+
+  timeout-minutes: 45
+
+  needs:
+    python-quality
 
 
-  docker-validation:
+  steps:
 
-    name: Docker validation and image build
+    - name: Check out repository
 
-    runs-on: ubuntu-latest
-
-    timeout-minutes: 45
-
-    needs:
-      python-quality
+      uses: actions/checkout@v5
 
 
-    steps:
+    - name: Prepare Docker Compose environment
 
-      - name: Check out repository
+      working-directory: ./indexer
 
-        uses: actions/checkout@v5
+      run: |
+        if [ -f .env.example ]; then
+          cp .env.example .env
+        else
+          touch .env
+        fi
 
+        mkdir -p \
+          "${RUNNER_TEMP}/documind-input" \
+          "${RUNNER_TEMP}/documind-output"
 
-      - name: Prepare Compose environment
-
-        run: |
-
-          if [ -f .env.example ]; then
-
-            cp \
-              .env.example \
-              .env
-
-          else
-
-            touch .env
-
-          fi
-
-
-          mkdir -p \
-            "${RUNNER_TEMP}/documind-input" \
-            "${RUNNER_TEMP}/documind-output"
+        {
+          echo "APP_UID=$(id -u)"
+          echo "APP_GID=$(id -g)"
+          echo "DOCUMIND_INPUT_ROOT_HOST=${RUNNER_TEMP}/documind-input"
+          echo "DOCUMIND_OUTPUT_ROOT_HOST=${RUNNER_TEMP}/documind-output"
+          echo "MODEL_PRELOAD=false"
+        } >> .env
 
 
-          {
+    - name: Validate Docker Compose configuration
 
-            echo \
-              "APP_UID=$(id -u)"
+      working-directory: ./indexer
 
-            echo \
-              "APP_GID=$(id -g)"
+      run: |
+        echo "Current directory:"
+        pwd
 
-            echo \
-              "DOCUMIND_INPUT_ROOT_HOST=${RUNNER_TEMP}/documind-input"
+        echo "Directory contents:"
+        ls -la
 
-            echo \
-              "DOCUMIND_OUTPUT_ROOT_HOST=${RUNNER_TEMP}/documind-output"
-
-            echo \
-              "MODEL_PRELOAD=false"
-
-          } >> .env
+        docker compose \
+          -f docker-compose.yml \
+          config \
+          --quiet
 
 
-      - name: Validate Docker Compose configuration
+    - name: Set up Docker Buildx
 
-        run: |
-
-          docker compose \
-            config \
-            --quiet
+      uses:
+        docker/setup-buildx-action@v3
 
 
-      - name: Set up Docker Buildx
+    - name: Build Docker image
 
-        uses:
-          docker/setup-buildx-action@v3
+      uses:
+        docker/build-push-action@v6
 
+      with:
 
-      - name: Build Docker image
+        context: ./indexer
 
-        uses:
-          docker/build-push-action@v6
+        file: ./indexer/Dockerfile
 
-        with:
+        push: false
 
-          context: .
+        tags:
+          documind-indexer-api:ci
 
-          file: ./Dockerfile
+        cache-from:
+          type=gha
 
-          push: false
+        cache-to:
+          type=gha,mode=max
 
-          tags:
-            documind-indexer-api:ci
-
-          cache-from:
-            type=gha
-
-          cache-to:
-            type=gha,mode=max
-
-          build-args: |
-
-            APP_UID=1000
-
-            APP_GID=1000
+        build-args: |
+          APP_UID=1000
+          APP_GID=1000
