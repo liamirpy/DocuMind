@@ -302,8 +302,8 @@ ruff format --check .
 docker network create documind
 
 
-docker compose run --rm \
-  -e INPUT_DIR=/input/document-456 \
+sudo docker compose run --rm \
+  -e INPUT_DIR=/input/doc_456 \
   ingestor
 
 
