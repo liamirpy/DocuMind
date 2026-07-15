@@ -1,0 +1,237 @@
+{
+  "schema_version": "1.2.0",
+  "document_id": "canonical-sha256-example",
+  "created_at": "2026-07-11T10:00:00Z",
+  "document": {
+    "filename": "sample-paper.pdf",
+    "sha256": "canonical-sha256-example",
+    "size_bytes": 123456
+  },
+  "metadata": {
+    "title": "A Small Retrieval Paper",
+    "authors": [
+      "A. Researcher"
+    ],
+    "language": "en"
+  },
+  "content": {
+    "full_text": "",
+    "sections": [
+      {
+        "id": "sec_001",
+        "title": "Introduction",
+        "path": [
+          "Introduction"
+        ],
+        "level": 1,
+        "order": 1,
+        "paragraph_ids": [
+          "para_00001",
+          "para_00002"
+        ]
+      },
+      {
+        "id": "sec_002",
+        "title": "Methods",
+        "path": [
+          "Methods"
+        ],
+        "level": 1,
+        "order": 2,
+        "paragraph_ids": [
+          "para_00003",
+          "para_00004"
+        ]
+      },
+      {
+        "id": "sec_003",
+        "title": "References",
+        "path": [
+          "References"
+        ],
+        "level": 1,
+        "order": 3,
+        "paragraph_ids": [
+          "para_00005"
+        ]
+      }
+    ],
+    "paragraphs": [
+      {
+        "id": "para_00001",
+        "section_id": "sec_001",
+        "section_path": [
+          "Introduction"
+        ],
+        "order": 1,
+        "text": "Retrieval-augmented generation combines search with language generation. The retriever finds relevant evidence before the language model creates an answer. Good chunk boundaries improve retrieval quality because each result remains focused and understandable.",
+        "page_start": 1,
+        "page_end": 1
+      },
+      {
+        "id": "para_00002",
+        "section_id": "sec_001",
+        "section_path": [
+          "Introduction"
+        ],
+        "order": 2,
+        "text": "A hierarchical strategy stores large parent chunks for context and smaller child chunks for retrieval. Each child points to its parent so an application can retrieve a precise passage and then expand to a broader context window.",
+        "page_start": 1,
+        "page_end": 2
+      },
+      {
+        "id": "para_00003",
+        "section_id": "sec_002",
+        "section_path": [
+          "Methods"
+        ],
+        "order": 3,
+        "text": "The method first validates the canonical JSON. It sorts paragraphs by reading order and processes one section at a time. Sentences are packed until a target token count is reached without exceeding the maximum token count.",
+        "page_start": 3,
+        "page_end": 3
+      },
+      {
+        "id": "para_00004",
+        "section_id": "sec_002",
+        "section_path": [
+          "Methods"
+        ],
+        "order": 4,
+        "text": "Child chunks reuse complete trailing sentences as overlap. Parent chunks can use a separate overlap setting. Figures, tables, and formulas are emitted as standalone chunks because their captions, descriptions, and structured content should remain together.",
+        "page_start": 3,
+        "page_end": 4
+      },
+      {
+        "id": "para_00005",
+        "section_id": "sec_003",
+        "section_path": [
+          "References"
+        ],
+        "order": 5,
+        "text": "Vaswani et al. Attention Is All You Need. Advances in Neural Information Processing Systems, 2017.",
+        "page_start": 5,
+        "page_end": 5
+      }
+    ],
+    "figures": [
+      {
+        "id": "figure_001",
+        "index": 1,
+        "label": "Figure 1",
+        "caption": "Canonical fallback figure caption.",
+        "description": {
+          "summary": "A workflow from canonical JSON to parent and child chunks.",
+          "text": "The diagram shows canonical JSON entering a validator, followed by hierarchical text chunking and standalone visual-element chunking.",
+          "element_type": "figure",
+          "source": "ollama_vision"
+        },
+        "page": 2,
+        "section_id": "sec_002",
+        "section_title": "Methods",
+        "section_path": [
+          "Methods",
+          "VR System"
+        ],
+        "assets": {
+          "image": {
+            "path": "figures/figure_001.png"
+          },
+          "caption_text": "figures/figure_001.caption.txt",
+          "description_json": "figures/figure_001.description.json"
+        }
+      }
+    ],
+    "tables": [
+      {
+        "id": "table_001",
+        "index": 1,
+        "label": "Table 1",
+        "caption": "Canonical fallback table caption.",
+        "description": null,
+        "page": 4,
+        "section_id": "sec_002",
+        "section_title": "Methods",
+        "section_path": [
+          "Methods"
+        ],
+        "columns": [
+          "Method",
+          "Recall",
+          "Precision"
+        ],
+        "rows": [
+          [
+            "Flat",
+            "0.78",
+            "0.81"
+          ],
+          [
+            "Parent-child",
+            "0.88",
+            "0.86"
+          ]
+        ],
+        "row_count": 2,
+        "column_count": 3,
+        "data_source": "docling",
+        "assets": {
+          "caption_text": "tables/table_001.caption.txt",
+          "description_json": "tables/table_001.description.json",
+          "markdown": "tables/table_001.md",
+          "latex": "tables/table_001.tex"
+        }
+      }
+    ],
+    "formulas": [
+      {
+        "id": "formula_001",
+        "index": 1,
+        "equation_number": "(1)",
+        "latex": "score(q, d) = cos(E(q), E(d))",
+        "text": "The score is the cosine similarity between query and document embeddings.",
+        "description": {
+          "text": "The formula defines semantic similarity using the cosine of the query and document embedding vectors.",
+          "element_type": "formula",
+          "source": "ollama_vision"
+        },
+        "page": 4,
+        "section_id": "sec_002",
+        "section_title": "Methods",
+        "section_path": [
+          "Methods"
+        ],
+        "assets": {
+          "description_json": "formulas/formula_001.description.json",
+          "latex": "formulas/formula_001.tex",
+          "text": "formulas/formula_001.txt"
+        }
+      }
+    ],
+    "references": [
+      {
+        "id": "b0",
+        "title": "Attention Is All You Need",
+        "authors": [
+          "Ashish Vaswani",
+          "Noam Shazeer"
+        ],
+        "year": "2017",
+        "doi": null,
+        "raw": "Vaswani, A. et al. Attention Is All You Need. NeurIPS, 2017.",
+        "coords": []
+      },
+      {
+        "id": "b1",
+        "title": "Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks",
+        "authors": [
+          "Patrick Lewis",
+          "Ethan Perez"
+        ],
+        "year": "2020",
+        "doi": "10.48550/arXiv.2005.11401",
+        "raw": "Lewis, P. et al. Retrieval-Augmented Generation for Knowledge-Intensive NLP Tasks. 2020.",
+        "coords": []
+      }
+    ]
+  }
+}

@@ -1,0 +1,90 @@
+{
+  "index_patterns": [
+    "documind-chunks-*"
+  ],
+  "priority": 100,
+  "template": {
+    "settings": {
+      "index": {
+        "knn": true,
+        "number_of_shards": 1,
+        "number_of_replicas": 0
+      }
+    },
+    "mappings": {
+      "dynamic": "strict",
+      "properties": {
+        "user_id": {"type": "keyword"},
+        "document_id": {"type": "keyword"},
+        "document_public_id": {"type": "keyword"},
+        "source_document_id": {"type": "keyword"},
+        "chunk_id": {"type": "keyword"},
+        "chunk_index": {"type": "integer"},
+        "source_type": {"type": "keyword"},
+        "chunk_role": {"type": "keyword"},
+        "parent_chunk_id": {"type": "keyword"},
+        "child_chunk_ids": {"type": "keyword"},
+        "source_ids": {"type": "keyword"},
+        "retrieval_enabled": {"type": "boolean"},
+        "oversized": {"type": "boolean"},
+        "document_title": {
+          "type": "text",
+          "fields": {
+            "raw": {"type": "keyword", "ignore_above": 512}
+          }
+        },
+        "document_authors": {
+          "type": "text",
+          "fields": {
+            "raw": {"type": "keyword", "ignore_above": 256}
+          }
+        },
+        "original_filename": {"type": "keyword", "ignore_above": 1024},
+        "file_type": {"type": "keyword"},
+        "language": {"type": "keyword"},
+        "section_id": {"type": "keyword"},
+        "section_path": {"type": "keyword"},
+        "section_path_text": {
+          "type": "text",
+          "fields": {
+            "raw": {"type": "keyword", "ignore_above": 1024}
+          }
+        },
+        "page_start": {"type": "integer"},
+        "page_end": {"type": "integer"},
+        "content": {"type": "text"},
+        "retrieval_text": {"type": "text"},
+        "caption": {"type": "text"},
+        "summary": {"type": "text"},
+        "element_text": {"type": "text", "index": false},
+        "table_text": {"type": "text", "index": false},
+        "formula_text": {"type": "text", "index": false},
+        "formula_latex": {"type": "text", "index": false},
+        "details": {"type": "object", "enabled": false},
+        "warnings": {"type": "keyword", "ignore_above": 1024},
+        "token_count": {"type": "integer"},
+        "content_hash": {"type": "keyword"},
+        "canonical_schema_version": {"type": "keyword"},
+        "chunks_schema_version": {"type": "keyword"},
+        "chunker_version": {"type": "keyword"},
+        "tokenizer_name": {"type": "keyword"},
+        "embedding_model": {"type": "keyword"},
+        "embedding_dimensions": {"type": "integer"},
+        "indexed_at": {"type": "date"},
+        "embedding": {
+          "type": "knn_vector",
+          "dimension": 1024,
+          "method": {
+            "name": "hnsw",
+            "engine": "lucene",
+            "space_type": "cosinesimil",
+            "parameters": {
+              "ef_construction": 128,
+              "m": 16
+            }
+          }
+        }
+      }
+    }
+  }
+}

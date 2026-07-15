@@ -1,0 +1,10 @@
+# Add the service-level network attachment to your existing OpenSearch service.
+services:
+  opensearch:
+    networks:
+      - documind
+
+# Add this top-level network declaration to the end of the Compose file.
+networks:
+  documind:
+    external: true
