@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import json
+import shutil
+
 from app.chunking.config import (
     ChunkingConfig,
     HierarchicalTextConfig,
@@ -102,3 +105,49 @@ def test_chunk_ids_are_deterministic(sample_directory) -> None:
     second = pipeline.run(package=package, context=context)
 
     assert [chunk.chunk_id for chunk in first.chunks] == [chunk.chunk_id for chunk in second.chunks]
+
+
+def test_text_block_bounding_boxes_are_preserved_in_chunk_details(
+    sample_directory,
+    tmp_path,
+) -> None:
+    copied = tmp_path / "pdf-output"
+    shutil.copytree(sample_directory, copied)
+
+    canonical_path = copied / "canonical_document.json"
+    data = json.loads(canonical_path.read_text(encoding="utf-8"))
+    paragraph = data["content"]["paragraphs"][0]
+    data["content"]["text_blocks"] = [
+        {
+            "id": "#/texts/3",
+            "index": 4,
+            "label": "text",
+            "text": paragraph["text"],
+            "paragraph_id": paragraph["id"],
+            "provenance": [
+                {
+                    "page_no": 1,
+                    "bbox": {
+                        "l": 105.693,
+                        "t": 757.012488,
+                        "r": 136.873758,
+                        "b": 750.561538,
+                        "coord_origin": "BOTTOMLEFT",
+                    },
+                    "charspan": [0, 8],
+                }
+            ],
+        }
+    ]
+    canonical_path.write_text(json.dumps(data), encoding="utf-8")
+
+    _, output = run_pipeline(copied)
+    paragraph_chunks = [chunk for chunk in output.chunks if paragraph["id"] in chunk.source_ids]
+
+    assert paragraph_chunks
+    for chunk in paragraph_chunks:
+        locations = chunk.details["source_locations"]
+        assert locations[0]["source_block_id"] == "#/texts/3"
+        assert locations[0]["page"] == 1
+        assert locations[0]["bbox"]["coord_origin"] == "BOTTOMLEFT"
+        assert locations[0]["charspan"] == [0, 8]

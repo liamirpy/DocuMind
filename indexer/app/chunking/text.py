@@ -14,6 +14,7 @@ from app.chunking.common import (
 )
 from app.chunking.config import ChunkingConfig, WindowConfig
 from app.chunking.models import ChunkRecord, IngestionContext
+from app.chunking.provenance import details_for_source_locations, paragraph_source_locations
 from app.chunking.token_counter import TokenCounter
 
 _SENTENCE_BOUNDARY = re.compile(r"(?<=[.!?])\s+(?=[A-Z0-9])")
@@ -27,6 +28,7 @@ class _TextUnit:
     section_path: tuple[str, ...]
     page_start: int | None
     page_end: int | None
+    source_locations: tuple[dict[str, object], ...]
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,7 @@ class _ChildDraft:
     token_count: int
     content_hash: str
     pages: tuple[int | None, int | None]
+    details: dict[str, object]
 
 
 class HierarchicalTextChunker:
@@ -73,6 +76,7 @@ class HierarchicalTextChunker:
                 )
             ]
         title = canonical.metadata.title
+        locations_by_paragraph = paragraph_source_locations(canonical)
         records: list[ChunkRecord] = []
         next_ordinal = start_ordinal
 
@@ -92,6 +96,7 @@ class HierarchicalTextChunker:
             units = self._paragraphs_to_units(
                 section_paragraphs,
                 max_unit_tokens=smallest_body_limit,
+                locations_by_paragraph=locations_by_paragraph,
             )
             if not units:
                 continue
@@ -206,6 +211,7 @@ class HierarchicalTextChunker:
                 section_path_parts=list(section_path),
                 page_start=parent_page_start,
                 page_end=parent_page_end,
+                details=self._details_for_units(parent_units),
                 text=parent_content,
                 content=parent_content,
                 retrieval_text=parent_retrieval_text,
@@ -245,6 +251,7 @@ class HierarchicalTextChunker:
                         section_path_parts=list(section_path),
                         page_start=draft.pages[0],
                         page_end=draft.pages[1],
+                        details=draft.details,
                         text=draft.content,
                         content=draft.content,
                         retrieval_text=draft.retrieval_text,
@@ -338,6 +345,7 @@ class HierarchicalTextChunker:
                     section_path_parts=list(section_path),
                     page_start=page_start,
                     page_end=page_end,
+                    details=self._details_for_units(window),
                     text=content,
                     content=content,
                     retrieval_text=retrieval_text,
@@ -415,6 +423,7 @@ class HierarchicalTextChunker:
                     pages=page_range(
                         page for unit in window for page in (unit.page_start, unit.page_end)
                     ),
+                    details=self._details_for_units(window),
                 )
             )
         return drafts
@@ -479,6 +488,7 @@ class HierarchicalTextChunker:
         paragraphs: list[CanonicalParagraph],
         *,
         max_unit_tokens: int,
+        locations_by_paragraph: dict[str, tuple[dict[str, object], ...]],
     ) -> list[_TextUnit]:
         units: list[_TextUnit] = []
         for paragraph in paragraphs:
@@ -495,6 +505,7 @@ class HierarchicalTextChunker:
                             section_path=tuple(paragraph.section_path),
                             page_start=paragraph.page_start,
                             page_end=paragraph.page_end,
+                            source_locations=locations_by_paragraph.get(paragraph.id, ()),
                         )
                     )
         return units
@@ -564,6 +575,12 @@ class HierarchicalTextChunker:
     @staticmethod
     def _source_ids(units: list[_TextUnit]) -> list[str]:
         return list(dict.fromkeys(unit.paragraph_id for unit in units))
+
+    @staticmethod
+    def _details_for_units(units: list[_TextUnit]) -> dict[str, object]:
+        return details_for_source_locations(
+            [location for unit in units for location in unit.source_locations]
+        )
 
     @staticmethod
     def _join_units(units: list[_TextUnit]) -> str:

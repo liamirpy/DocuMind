@@ -1,0 +1,3 @@
+This equation calculates a weighted average or aggregation over multiple values using a summation and multiplication. It involves an index `c`, a range from 0 to `C-1`, and two functions: one for the sum (`F_pointwise`) and another that is not explicitly defined but seems to be involved in the operation.
+
+The formula represents a summation over the variable `c` from 0 to `C-1`, where each term in the sum is multiplied by another function `F_pointwise`. The result of this operation is assigned to the variable `Y[h, w, p]`.

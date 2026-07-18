@@ -3,7 +3,7 @@ import {pool} from "./db/pool.js";
 import app from "./app.js";
 
 dotenv.config()
-const PORT = process.env.PORT || 8000;
+const PORT = process.env.PORT || 8001;
 
 
 async function startServer() {

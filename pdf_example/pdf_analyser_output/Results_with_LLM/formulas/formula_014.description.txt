@@ -1,0 +1,3 @@
+The formula calculates a diagnostic sensitivity coefficient (DSC) by dividing twice the count of true positive results by the combined count of all test results, including both true and false positives and negatives. This ratio helps in evaluating the performance of binary classification models.
+
+The formula represents a ratio involving the terms TP, FP, and FN. It is structured as follows: DSC = rac { 2TP } { 2TP + FP + FN }. This fraction compares twice the number of true positives to the total sum of true positives plus false positives plus false negatives.

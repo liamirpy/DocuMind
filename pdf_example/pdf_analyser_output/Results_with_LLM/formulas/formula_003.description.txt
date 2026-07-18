@@ -1,0 +1,3 @@
+Z_i = S'_i + X'_i
+
+The formula represents a mathematical expression where Z_i is the sum of two terms, S'_i and X'_i. The indices i are used to denote specific elements or instances in a sequence.

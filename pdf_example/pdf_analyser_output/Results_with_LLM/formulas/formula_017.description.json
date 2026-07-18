@@ -1,0 +1,38 @@
+{
+  "text": "The formula shows a mathematical expression involving the symbol \\mathcal{L}_{TL} which is equal to one minus the value of TI(p,g). The term TI stands for something that depends on two variables: p and g. This equation appears in context (7), possibly indicating it's part of a larger set or sequence.",
+  "summary": "The formula \\mathcal{L}_{TL} = 1 - T I (p, g) is presented with the symbol L representing some kind of function or measure that depends on two variables p and g. The value of this function at point (p,g) is subtracted from one.",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [
+    "The formula uses symbols that are not standard in mathematical notation and might be interpreted differently by some readers."
+  ],
+  "details": {
+    "visible_structure": [
+      "\\mathcal{L}",
+      "_",
+      "T",
+      "L"
+    ],
+    "symbols": [
+      {
+        "symbol": "\\mathcal{L}",
+        "visible_role": "function or measure"
+      },
+      {
+        "symbol": "_",
+        "visible_role": "separator"
+      },
+      {
+        "symbol": "T",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "L",
+        "visible_role": "variable"
+      }
+    ]
+  }
+}

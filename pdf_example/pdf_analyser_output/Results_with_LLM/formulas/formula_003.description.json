@@ -1,0 +1,45 @@
+{
+  "text": "The formula represents a mathematical expression where Z_i is the sum of two terms, S'_i and X'_i. The indices i are used to denote specific elements or instances in a sequence.",
+  "summary": "Z_i = S'_i + X'_i",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "visible_structure": [
+      "Z _ { i } ",
+      "=",
+      "S _ { i } ^ { \\prime } ",
+      "+",
+      "X _ { i } ^ { \\prime } "
+    ],
+    "symbols": [
+      {
+        "symbol": "Z",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "i",
+        "visible_role": "index"
+      },
+      {
+        "symbol": "S",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "i_prime",
+        "visible_role": "operator"
+      },
+      {
+        "symbol": "X",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "i_prime",
+        "visible_role": "operator"
+      }
+    ]
+  }
+}

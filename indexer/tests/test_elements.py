@@ -99,3 +99,36 @@ def test_oversized_special_element_is_kept_as_one_chunk(sample_directory, tmp_pa
     assert table_chunks[0].oversized is True
     assert table_chunks[0].token_count > 80
     assert table_chunks[0].warnings
+
+
+def test_element_provenance_is_preserved_without_entering_retrieval_text(
+    sample_directory,
+    tmp_path,
+) -> None:
+    copied = tmp_path / "pdf-output"
+    shutil.copytree(sample_directory, copied)
+
+    canonical_path = copied / "canonical_document.json"
+    data = json.loads(canonical_path.read_text(encoding="utf-8"))
+    data["content"]["figures"][0]["provenance"] = {
+        "docling": [
+            {
+                "page_no": 4,
+                "bbox": {
+                    "l": 20.0,
+                    "t": 300.0,
+                    "r": 500.0,
+                    "b": 120.0,
+                    "coord_origin": "BOTTOMLEFT",
+                },
+            }
+        ]
+    }
+    canonical_path.write_text(json.dumps(data), encoding="utf-8")
+
+    output = run_pipeline(copied)
+    figure = next(chunk for chunk in output.chunks if chunk.source_type == "figure")
+
+    assert figure.details["source_locations"][0]["page"] == 4
+    assert figure.details["source_locations"][0]["bbox"]["l"] == 20.0
+    assert "source_locations" not in figure.retrieval_text

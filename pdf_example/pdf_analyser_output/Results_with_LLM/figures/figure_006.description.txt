@@ -1,0 +1,11 @@
+A workflow for segmenting lesions in a 3D MRI image is depicted. The process involves decomposing the MRI into 2D slices, training separate models per plane, and then aggregating these predictions to create a final 3D mask.
+
+The figure illustrates a workflow for segmenting lesions in a 3D MRI image. The process is divided into three main steps: 
+
+1. **Decomposition of 3D MRI**: The first step involves breaking down the 3D MRI image into two-dimensional (2D) slices, as indicated by the sagittal, coronal, and axial views shown in the figure.
+
+2. **Per-Plane Lesion Segmentation Using 2D Models**: In this phase, separate models are trained for each plane to segment lesions within those planes. The trained models are represented by different colored blocks (blue, green, and black) corresponding to sagittal, coronal, and axial views respectively.
+
+3. **Aggregation of Predictions into a Final 3D Mask**: Finally, the predictions from all three planes are fused together to create a final 3D mask that encompasses all detected lesions in the entire volume of the MRI image. This is shown by the fusion process where the predicted lesion regions (in purple) are overlaid on the original 3D MRI image.
+
+The figure visually demonstrates how each step contributes to the overall segmentation task, from decomposing the data into slices to fusing predictions across different planes.

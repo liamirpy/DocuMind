@@ -1,0 +1,23 @@
+{
+  "text": "This table compares the performance of a segmentation model on three different planes (Axial, Sagittal, Coronal) before and after aggregation across 112 cases using metrics such as Dice, Precision, and Recall.",
+  "summary": "The table shows that aggregating data improves the performance in all three planes. For example, in the Axial plane, the Dice score increases from 0.8016 to 0.8451 with aggregation, while Precision and Recall both increase significantly (from 0.8612 to 0.9019 for Precision and from 0.8748 to 0.8807 for Recall). Similar improvements are observed in the Sagittal plane where Dice increases from 0.8231 to 0.8753, Precision from 0.8830 to 0.9331, and Recall from 0.8951 to 0.9022 with aggregation. In the Coronal plane, Dice improves from 0.8184 to 0.8633, Precision increases from 0.8984 to 0.9156, and Recall from 0.8712 to 0.8987 with aggregation.",
+  "element_type": "table",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 100,
+  "warnings": [],
+  "details": {
+    "key_observations": [
+      "Aggregation improves Dice score in all planes.",
+      "Precision and Recall generally increase after aggregation."
+    ],
+    "visible_headers": [
+      "Plane",
+      "Aggregation",
+      "Dice",
+      "Precision",
+      "Recall"
+    ]
+  }
+}

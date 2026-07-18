@@ -17,6 +17,7 @@ from app.chunking.common import (
 )
 from app.chunking.config import ChunkingConfig
 from app.chunking.models import ChunkRecord, IngestionContext
+from app.chunking.provenance import merge_element_provenance
 from app.chunking.token_counter import TokenCounter
 from app.input_package.reader import InputPackage
 
@@ -95,7 +96,12 @@ class SpecialElementChunker:
             element=figure,
             folder="figures",
         )
-        text, summary, details = self._description_fields(description)
+        text, summary, semantic_details = self._description_fields(description)
+        details = merge_element_provenance(
+            semantic_details,
+            provenance=figure.provenance,
+            source_id=figure.id,
+        )
 
         label = clean_text(figure.label) or figure.id
         content_lines = [f"Figure: {label}"]
@@ -104,7 +110,7 @@ class SpecialElementChunker:
             caption=caption,
             summary=summary,
             text=text,
-            details=details,
+            details=semantic_details,
         )
         content = "\n\n".join(content_lines)
         retrieval_text = self._retrieval_text(
@@ -115,7 +121,7 @@ class SpecialElementChunker:
             caption=caption,
             summary=summary,
             text=text,
-            details=details,
+            details=semantic_details,
         )
 
         return self._build_record(
@@ -165,7 +171,12 @@ class SpecialElementChunker:
             element=table,
             folder="tables",
         )
-        text, summary, details = self._description_fields(description)
+        text, summary, semantic_details = self._description_fields(description)
+        details = merge_element_provenance(
+            semantic_details,
+            provenance=table.provenance,
+            source_id=table.id,
+        )
         table_text, table_text_source = self._table_text(package=package, table=table)
 
         label = clean_text(table.label) or table.id
@@ -175,7 +186,7 @@ class SpecialElementChunker:
             caption=caption,
             summary=summary,
             text=text,
-            details=details,
+            details=semantic_details,
         )
         if self.config.special_elements.include_table_data and table_text:
             content_lines.append(f"Table data:\n{table_text}")
@@ -193,7 +204,7 @@ class SpecialElementChunker:
             caption=caption,
             summary=summary,
             text=text,
-            details=details,
+            details=semantic_details,
             table_text=(table_text if self.config.special_elements.include_table_data else None),
         )
 
@@ -245,7 +256,12 @@ class SpecialElementChunker:
             element=formula,
             folder="formulas",
         )
-        text, summary, details = self._description_fields(description)
+        text, summary, semantic_details = self._description_fields(description)
+        details = merge_element_provenance(
+            semantic_details,
+            provenance=formula.provenance,
+            source_id=formula.id,
+        )
         formula_latex, latex_source = self._formula_latex(package=package, formula=formula)
         formula_text, formula_text_source = self._formula_text(package=package, formula=formula)
 
@@ -256,7 +272,7 @@ class SpecialElementChunker:
             caption=None,
             summary=summary,
             text=text,
-            details=details,
+            details=semantic_details,
         )
         if self.config.special_elements.include_formula_latex and formula_latex:
             content_lines.append(f"LaTeX:\n{formula_latex}")
@@ -272,7 +288,7 @@ class SpecialElementChunker:
             caption=None,
             summary=summary,
             text=text,
-            details=details,
+            details=semantic_details,
             formula_latex=(
                 formula_latex if self.config.special_elements.include_formula_latex else None
             ),

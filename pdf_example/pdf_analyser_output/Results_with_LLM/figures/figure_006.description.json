@@ -1,0 +1,25 @@
+{
+  "text": "The figure illustrates a workflow for segmenting lesions in a 3D MRI image. The process is divided into three main steps: \n\n1. **Decomposition of 3D MRI**: The first step involves breaking down the 3D MRI image into two-dimensional (2D) slices, as indicated by the sagittal, coronal, and axial views shown in the figure.\n\n2. **Per-Plane Lesion Segmentation Using 2D Models**: In this phase, separate models are trained for each plane to segment lesions within those planes. The trained models are represented by different colored blocks (blue, green, and black) corresponding to sagittal, coronal, and axial views respectively.\n\n3. **Aggregation of Predictions into a Final 3D Mask**: Finally, the predictions from all three planes are fused together to create a final 3D mask that encompasses all detected lesions in the entire volume of the MRI image. This is shown by the fusion process where the predicted lesion regions (in purple) are overlaid on the original 3D MRI image.\n\nThe figure visually demonstrates how each step contributes to the overall segmentation task, from decomposing the data into slices to fusing predictions across different planes.",
+  "summary": "A workflow for segmenting lesions in a 3D MRI image is depicted. The process involves decomposing the MRI into 2D slices, training separate models per plane, and then aggregating these predictions to create a final 3D mask.",
+  "element_type": "figure",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "figure_type": "Diagram",
+    "visible_text": [
+      "Fig. 5. Workflow of the proposed approach: (i) decomposition of 3D MRI into 2D slices, (ii) per-plane lesion segmentation using 2D models, and (iii) aggregation of predictions into a final 3D mask.",
+      "Workflow steps:",
+      "1. Decomposition of 3D MRI",
+      "2. Per-Plane Lesion Segmentation Using 2D Models",
+      "3. Aggregation of Predictions into a Final 3D Mask"
+    ],
+    "key_observations": [
+      "Decomposition of 3D MRI into sagittal, coronal, and axial slices.",
+      "Training separate models for each plane (sagittal: blue, coronal: green, axial: black).",
+      "Fusion of predictions from all planes to create a final 3D mask."
+    ]
+  }
+}

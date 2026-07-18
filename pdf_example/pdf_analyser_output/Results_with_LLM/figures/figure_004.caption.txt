@@ -1,0 +1,1 @@
+Fig. 3. Illustration of the separable convolution architecture, showing the decomposition of standard convolution into depthwise and pointwise operations.

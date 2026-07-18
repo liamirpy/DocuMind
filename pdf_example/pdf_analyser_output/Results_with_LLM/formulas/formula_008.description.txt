@@ -1,0 +1,8 @@
+The first equation shows how \hat { p } is transformed by f in relation to the matrix C, applied over the range of variables y and z. The second equation follows a similar structure but involves different indices (x - z instead of y - z) and transformations represented by matrices or tensors.
+
+The formula consists of two equations, each with a specific structure. The first equation is: \hat { p } _ { y - z } ^ { M } = f _ { y - z } \left( C _ { y - z } ^ { M } \right) . This equation involves the following components:
+- \hat { p } : A symbol representing a projection or transformation.
+- M: An index indicating a specific mode or state.
+- x - z: The variable range for which this operation is performed, typically denoted as y and z in this context.
+- f _ { y - z }: A function applied to the variables y and z within the specified range.
+- C _ { y - z } ^ { M }: A matrix or tensor representing a transformation or kernel associated with the mode M for the variables y and z.

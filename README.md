@@ -62,3 +62,39 @@ Run docker compose \
     PYTHON_VERSION: 3.12
 no configuration file provided: not found
 Error: Process completed with exit code 1.
+
+
+
+
+
+
+
+POST /api/rag/search
+          │
+          ▼
+Read authenticated user from req.user.id
+          │
+          ▼
+Send question to indexer
+POST http://localhost:8000/v1/embeddings/query
+          │
+          ▼
+Receive 1024-dimensional question embedding
+          │
+          ├───────────────┐
+          ▼               ▼
+OpenSearch k-NN       OpenSearch BM25
+vector search         keyword search
+          │               │
+          └───────┬───────┘
+                  ▼
+        Merge search results
+                  │
+                  ▼
+ Load parent chunks when available
+                  │
+                  ▼
+ Return context and sources
+
+
+ 

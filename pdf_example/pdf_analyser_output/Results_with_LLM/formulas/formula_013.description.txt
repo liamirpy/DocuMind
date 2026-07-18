@@ -1,0 +1,3 @@
+Recall measures how many positive instances are correctly identified out of all actual positive instances in binary classification problems.
+
+The formula for recall is given by the ratio of true positives (TP) to the sum of true positives and false negatives (FN), expressed as a fraction. The numerator contains only one term, TP, while the denominator includes two terms: TP and FN.

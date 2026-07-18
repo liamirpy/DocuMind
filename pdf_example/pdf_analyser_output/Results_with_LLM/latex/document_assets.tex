@@ -1,0 +1,59 @@
+\documentclass{article}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{amsmath}
+\begin{document}
+\input{formulas.tex}
+\input{tables.tex}
+% Figure assets are relative to the package root.
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_001.png}
+\caption{}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_002.png}
+\caption{Fig. 1. Distribution of ischemic stroke lesions across cortical and subcortical regions in the ATLAS v2.0 dataset.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_003.png}
+\caption{Fig. 2. Decomposition of a 3D MRI scan into axial, sagittal, and coronal planes. Blue, red, and green rectangles indicate the superior-inferior (axial), anterior-posterior (sagittal), and left-right (coronal) axes, respectively.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_004.png}
+\caption{Fig. 3. Illustration of the separable convolution architecture, showing the decomposition of standard convolution into depthwise and pointwise operations.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_005.png}
+\caption{Fig. 4. Architecture of the proposed RAX-Net, showing encoder-decoder design, residual connections, and residual attention blocks.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_006.png}
+\caption{Fig. 5. Workflow of the proposed approach: (i) decomposition of 3D MRI into 2D slices, (ii) per-plane lesion segmentation using 2D models, and (iii) aggregation of predictions into a final 3D mask.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_007.png}
+\caption{Fig. 6. Lesion distributions in ATLAS v2.0. (a) Lesion voxel-size distribution for the 524 cases used to train/evaluate 2D models and the 112 cases reserved for aggregation and 3D segmentation. (b) Axialplane lesion pixel-size distribution for the 524-case set and for one representative cross-validation fold.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_008.png}
+\caption{Fig. 7. Axial-plane evaluation metrics before and after aggregation.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_009.png}
+\caption{Fig. 8. Representative 3D visualization: (a-c) planes (Axial, Sagittal, and Coronal), (d) ground-truth mask, and (e) final segmentation after aggregation.}
+\end{figure}
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\linewidth]{../figures/figure_010.png}
+\caption{Fig. 9. Raincloud plots of Dice, precision, and recall across 112 subjects.}
+\end{figure}
+\end{document}

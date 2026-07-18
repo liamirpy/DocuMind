@@ -1,0 +1,3 @@
+The table shows that for 'One Lesion', there are 173 (26.4%) on the left, 187 (28.5%) on the right, and 46 (7.0%) in other locations. For 'Multiple Lesions', it has 47 (7.2%) unilateral cases, 121 (18.5%) bilateral cases, and 81 (12.4%) in other categories.
+
+This table compares the distribution of lesions in different anatomical locations and their frequency across two categories: 'One Lesion' and 'Multiple Lesions'. The data is presented as counts with percentages indicating the proportion of each category.

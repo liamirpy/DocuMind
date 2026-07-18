@@ -1,0 +1,64 @@
+{
+  "text": "The formula represents a weighted average of two terms, where the first term is the sum of products of probabilities and gains for each vertex, and the second term includes additional weights based on whether the gain or probability is zero. The formula uses summation notation to represent these sums over all vertices.",
+  "summary": "This mathematical expression calculates an index (TI) that combines two weighted averages: one based on product terms involving probabilities and gains, and another based on a combination of non-zero products involving either gains or probabilities being zero. This is often used in machine learning for feature importance calculation.",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "visible_structure": [
+      "\n",
+      "\n",
+      " TI( p, g ) = ",
+      " ∑ v p v g v / ( ∑ v p v g v + α t ∑ v ( 1 - g v ) p v + β t ∑ v g v ( 1 - p v ) ), \n",
+      " with\n",
+      "\n",
+      "   ∑ v p v g v, with F D _ { v }, F N _ { v }, T h s c r C.",
+      "\n"
+    ],
+    "symbols": [
+      {
+        "symbol": "TI",
+        "visible_role": "function"
+      },
+      {
+        "symbol": "p",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "g",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "∑",
+        "visible_role": "summation"
+      },
+      {
+        "symbol": "v",
+        "visible_role": "index"
+      },
+      {
+        "symbol": "α t ",
+        "visible_role": "parameter"
+      },
+      {
+        "symbol": "β t ",
+        "visible_role": "parameter"
+      },
+      {
+        "symbol": "(1 - g v )",
+        "visible_role": "expression"
+      },
+      {
+        "symbol": "p v ",
+        "visible_role": "expression"
+      },
+      {
+        "symbol": "g v ",
+        "visible_role": "expression"
+      }
+    ]
+  }
+}

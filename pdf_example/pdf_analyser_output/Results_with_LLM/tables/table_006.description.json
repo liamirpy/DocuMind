@@ -1,0 +1,25 @@
+{
+  "text": "This table compares the training and prediction times for different models across three planes, along with their respective parameter counts.",
+  "summary": "The table shows that X-Net has a consistent short training time of approximately 9 hours regardless of the plane (axial, sagittal, or coronal), while CLCI and RAX have varying training times. Prediction times are also shown for each model in all three planes, with X-Net consistently having the shortest prediction time. The parameter count is identical across all models.",
+  "element_type": "table",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 100,
+  "warnings": [],
+  "details": {
+    "key_observations": [
+      "X-Net has a short training time of approximately 9 hours",
+      "CLCI and RAX have varying training times",
+      "Prediction times are consistent for X-Net, with CLCI and RAX having different values",
+      "Parameter count is the same across all models"
+    ],
+    "visible_headers": [
+      "Plane",
+      "Model",
+      "Training Time (h)",
+      "Prediction Time (s)",
+      "Parameters"
+    ]
+  }
+}

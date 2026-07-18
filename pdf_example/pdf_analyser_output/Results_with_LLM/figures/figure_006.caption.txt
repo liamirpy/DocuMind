@@ -1,0 +1,1 @@
+Fig. 5. Workflow of the proposed approach: (i) decomposition of 3D MRI into 2D slices, (ii) per-plane lesion segmentation using 2D models, and (iii) aggregation of predictions into a final 3D mask.

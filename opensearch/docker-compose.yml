@@ -10,10 +10,12 @@ services:
 
       # Run only one OpenSearch node
       - discovery.type=single-node
+      
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=DOCUMIND_opensearch_password_2026
 
       # Local development only
-      - DISABLE_INSTALL_DEMO_CONFIG=true
-      - DISABLE_SECURITY_PLUGIN=true
+      # - DISABLE_INSTALL_DEMO_CONFIG=true
+      # - DISABLE_SECURITY_PLUGIN=true
 
       # Java memory
       - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
@@ -39,4 +41,19 @@ services:
         soft: 65536
         hard: 65536
 
+
+    networks:
+      - documind
+
     restart: unless-stopped
+
+networks:
+  documind:
+    external: true
+
+
+
+
+# curl -k \
+#   -u "admin:DOCUMIND_opensearch_password_2026!" \
+#   https://localhost:9200

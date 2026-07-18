@@ -1,0 +1,1 @@
+Fig. 6. Lesion distributions in ATLAS v2.0. (a) Lesion voxel-size distribution for the 524 cases used to train/evaluate 2D models and the 112 cases reserved for aggregation and 3D segmentation. (b) Axialplane lesion pixel-size distribution for the 524-case set and for one representative cross-validation fold.

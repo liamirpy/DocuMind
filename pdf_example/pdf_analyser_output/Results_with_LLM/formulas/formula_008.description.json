@@ -1,0 +1,38 @@
+{
+  "text": "The formula consists of two equations, each with a specific structure. The first equation is: \\hat { p } _ { y - z } ^ { M } = f _ { y - z } \\left( C _ { y - z } ^ { M } \\right) . This equation involves the following components:\n- \\hat { p } : A symbol representing a projection or transformation.\n- M: An index indicating a specific mode or state.\n- x - z: The variable range for which this operation is performed, typically denoted as y and z in this context.\n- f _ { y - z }: A function applied to the variables y and z within the specified range.\n- C _ { y - z } ^ { M }: A matrix or tensor representing a transformation or kernel associated with the mode M for the variables y and z.",
+  "summary": "The first equation shows how \\hat { p } is transformed by f in relation to the matrix C, applied over the range of variables y and z. The second equation follows a similar structure but involves different indices (x - z instead of y - z) and transformations represented by matrices or tensors.",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "visible_structure": [
+      "\\hat { p } _ { x - z } ^ { M } = f _ { x - z } \\left( C _ { x - z } ^ { M } \\right) .",
+      "\\hat { p } _ { y - z } ^ { M } = f _ { y - z } \\left( C _ { y - z } ^ { M } \\right) ."
+    ],
+    "symbols": [
+      {
+        "symbol": "\\hat { p } ",
+        "visible_role": "A symbol representing a projection or transformation."
+      },
+      {
+        "symbol": "M",
+        "visible_role": "An index indicating a specific mode or state."
+      },
+      {
+        "symbol": "x - z",
+        "visible_role": "The variable range for which this operation is performed, typically denoted as y and z in this context."
+      },
+      {
+        "symbol": "f _ { x - z } ",
+        "visible_role": "A function applied to the variables x and z within the specified range."
+      },
+      {
+        "symbol": "C _ { x - z } ^ { M } ",
+        "visible_role": "A matrix or tensor representing a transformation or kernel associated with the mode M for the variables x and z."
+      }
+    ]
+  }
+}

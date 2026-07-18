@@ -1,0 +1,46 @@
+{
+  "text": "The formula represents a ratio involving the terms TP, FP, and FN. It is structured as follows: DSC = \frac { 2TP } { 2TP + FP + FN }. This fraction compares twice the number of true positives to the total sum of true positives plus false positives plus false negatives.",
+  "summary": "The formula calculates a diagnostic sensitivity coefficient (DSC) by dividing twice the count of true positive results by the combined count of all test results, including both true and false positives and negatives. This ratio helps in evaluating the performance of binary classification models.",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [
+    "The formula assumes that TP represents true positives and FP represents false positives.",
+    "The denominator includes all test results (true positives + false positives + false negatives)."
+  ],
+  "details": {
+    "visible_structure": [
+      "\n",
+      "DSC = ",
+      "\\frac{2TP}{2TP + FP + FN}"
+    ],
+    "symbols": [
+      {
+        "symbol": "\\ D S C",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "=",
+        "visible_role": "operator"
+      },
+      {
+        "symbol": "\\frac{",
+        "visible_role": "operator"
+      },
+      {
+        "symbol": "2TP",
+        "visible_role": "term"
+      },
+      {
+        "symbol": "FP",
+        "visible_role": "term"
+      },
+      {
+        "symbol": "FN",
+        "visible_role": "term"
+      }
+    ]
+  }
+}

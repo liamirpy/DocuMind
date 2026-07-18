@@ -1,0 +1,19 @@
+{
+  "text": "The image shows the word 'LOGO' in large blue letters.",
+  "summary": "The image contains the word 'LOGO' written in large blue letters.",
+  "element_type": "figure",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 1.0,
+  "warnings": [],
+  "details": {
+    "figure_type": "Text",
+    "visible_text": [
+      "LOGO"
+    ],
+    "key_observations": [
+      "The text is in blue color."
+    ]
+  }
+}

@@ -1,0 +1,3 @@
+The formula \mathcal{L}_{TL} = 1 - T I (p, g) is presented with the symbol L representing some kind of function or measure that depends on two variables p and g. The value of this function at point (p,g) is subtracted from one.
+
+The formula shows a mathematical expression involving the symbol \mathcal{L}_{TL} which is equal to one minus the value of TI(p,g). The term TI stands for something that depends on two variables: p and g. This equation appears in context (7), possibly indicating it's part of a larger set or sequence.

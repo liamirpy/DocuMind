@@ -303,7 +303,7 @@ docker network create documind
 
 
 sudo docker compose run --rm \
-  -e INPUT_DIR=/input/doc_456 \
+  -e INPUT_DIR=/input/doc_457 \
   ingestor
 
 

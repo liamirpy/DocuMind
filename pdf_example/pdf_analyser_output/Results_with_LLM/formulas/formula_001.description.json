@@ -1,0 +1,36 @@
+{
+  "text": "The formula represents a mathematical operation that computes the value of Y' at spatial location (h, w) and channel c. It involves two nested summations over indices i and j from 0 to D_h -1 and D_w -1 respectively. The expression inside the summation is X[h + i, w + j, c] multiplied by F_depthwise[i, j, c]. This operation is performed for each spatial location (h, w) and channel c.",
+  "summary": "Y' computation at spatial locations and channels",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [
+    "The formula uses nested summations and multiplication operations which may require careful handling in a LaTeX document to ensure correct rendering."
+  ],
+  "details": {
+    "visible_structure": [
+      "Y'",
+      "prime"
+    ],
+    "symbols": [
+      {
+        "symbol": "D_h",
+        "visible_role": "domain"
+      },
+      {
+        "symbol": "D_w",
+        "visible_role": "domain"
+      },
+      {
+        "symbol": "i",
+        "visible_role": "index"
+      },
+      {
+        "symbol": "j",
+        "visible_role": "index"
+      }
+    ]
+  }
+}

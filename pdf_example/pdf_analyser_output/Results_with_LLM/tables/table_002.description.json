@@ -1,0 +1,27 @@
+{
+  "text": "This table compares the distribution of lesions in different cortical and subcortical regions across three categories: One Lesion, Multiple Lesions, and Others. The data is presented for both left and right sides.",
+  "summary": "The total number of lesions counted as 1101, with a breakdown showing that 333 (30.2%) are in the 'Multiple Lesions' category on the left side, while 324 (29.4%) are in this category on the right side.",
+  "element_type": "table",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "key_observations": [
+      "The total number of lesions is 1101",
+      "There are more lesions categorized as 'Multiple Lesions' than those categorized as 'One Lesion'",
+      "Lesions are distributed across both left and right sides"
+    ],
+    "visible_headers": [
+      "One Lesion",
+      "Left",
+      "Right",
+      "Multiple Lesions",
+      "Left",
+      "Right",
+      "Others",
+      "Total"
+    ]
+  }
+}

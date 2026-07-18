@@ -1,0 +1,15 @@
+{
+  "text": "A boxplot with rainclouds illustrating the distribution of metrics values for Dice, Precision, and Recall across 112 subjects.",
+  "summary": "The figure shows a boxplot with rainclouds representing the distribution of Dice, Precision, and Recall scores among 112 subjects. The box represents the interquartile range (IQR), with the median line inside each box. The whiskers extend to show the spread beyond the IQR. The rainclouds above and below the boxes indicate individual data points for each metric across different subjects.",
+  "element_type": "figure",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 100,
+  "warnings": [],
+  "details": {
+    "figure_type": "plot",
+    "visible_text": [],
+    "key_observations": []
+  }
+}

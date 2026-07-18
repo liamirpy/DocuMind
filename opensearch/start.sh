@@ -15,8 +15,15 @@ SCRIPT_DIR="$(
 cd "$SCRIPT_DIR"
 
 
-OPENSEARCH_URL="http://localhost:9200"
+# OpenSearch connection
+OPENSEARCH_URL="https://localhost:9200"
 
+OPENSEARCH_USERNAME="${OPENSEARCH_USERNAME:-admin}"
+
+OPENSEARCH_PASSWORD="${OPENSEARCH_PASSWORD:-DOCUMIND_opensearch_password_2026}"
+
+
+# Docker/OpenSearch configuration
 CONTAINER_NAME="documind-opensearch"
 
 TEMPLATE_NAME="documind-chunks-template"
@@ -25,7 +32,27 @@ TEMPLATE_FILE="$SCRIPT_DIR/index-template.json"
 
 INDEX_NAME="documind-chunks-v1"
 
-DATA_DIRECTORY="$SCRIPT_DIR/data"
+
+# This must match the host directory configured in docker-compose.yml:
+#
+# /srv/documind_database/opensearch:/usr/share/opensearch/data
+#
+DATA_DIRECTORY="/srv/documind_database/opensearch"
+
+
+# Common authenticated curl command
+#
+# --insecure:
+# Accept the default self-signed OpenSearch TLS certificate.
+#
+# --user:
+# Send the OpenSearch username and password.
+#
+CURL=(
+  curl
+  --insecure
+  --user "${OPENSEARCH_USERNAME}:${OPENSEARCH_PASSWORD}"
+)
 
 
 # ============================================================
@@ -107,6 +134,7 @@ sudo mkdir \
   -p "$DATA_DIRECTORY"
 
 
+# The OpenSearch Docker container normally runs with UID/GID 1000.
 sudo chown \
   -R 1000:1000 \
   "$DATA_DIRECTORY"
@@ -131,7 +159,7 @@ echo "Starting OpenSearch..."
 
 
 # ============================================================
-# Wait until the REST API is available
+# Wait until the authenticated REST API is available
 # ============================================================
 
 echo "Waiting for OpenSearch..."
@@ -141,11 +169,13 @@ OPENSEARCH_READY=false
 
 for attempt in $(seq 1 90); do
 
-  if curl \
+  if "${CURL[@]}" \
     --fail \
     --silent \
-    "$OPENSEARCH_URL" \
-    > /dev/null
+    --output /dev/null \
+    --connect-timeout 2 \
+    --max-time 5 \
+    "$OPENSEARCH_URL"
   then
 
     OPENSEARCH_READY=true
@@ -154,6 +184,8 @@ for attempt in $(seq 1 90); do
 
   fi
 
+
+  echo "OpenSearch is not ready yet: attempt $attempt/90"
 
   sleep 2
 
@@ -189,7 +221,7 @@ echo "OpenSearch is available."
 
 echo "Installing index template: $TEMPLATE_NAME"
 
-curl \
+"${CURL[@]}" \
   --fail-with-body \
   --show-error \
   --request PUT \
@@ -210,7 +242,7 @@ echo "Index template installed successfully."
 echo "Checking index: $INDEX_NAME"
 
 HTTP_STATUS="$(
-  curl \
+  "${CURL[@]}" \
     --silent \
     --output /dev/null \
     --write-out "%{http_code}" \
@@ -223,7 +255,7 @@ if [[ "$HTTP_STATUS" == "404" ]]; then
   echo "Creating index: $INDEX_NAME"
 
 
-  curl \
+  "${CURL[@]}" \
     --fail-with-body \
     --show-error \
     --request PUT \
@@ -257,9 +289,10 @@ echo
 
 echo "OpenSearch cluster health:"
 
-curl \
+"${CURL[@]}" \
   --fail \
   --silent \
+  --show-error \
   "$OPENSEARCH_URL/_cluster/health?pretty"
 
 
@@ -269,9 +302,10 @@ echo
 
 echo "Installed template:"
 
-curl \
+"${CURL[@]}" \
   --fail \
   --silent \
+  --show-error \
   "$OPENSEARCH_URL/_index_template/$TEMPLATE_NAME?pretty"
 
 
@@ -281,9 +315,10 @@ echo
 
 echo "Indexes:"
 
-curl \
+"${CURL[@]}" \
   --fail \
   --silent \
+  --show-error \
   "$OPENSEARCH_URL/_cat/indices?v"
 
 
@@ -298,6 +333,12 @@ echo
 echo "OpenSearch URL:"
 
 echo "  $OPENSEARCH_URL"
+
+echo
+
+echo "OpenSearch username:"
+
+echo "  $OPENSEARCH_USERNAME"
 
 echo
 
@@ -316,5 +357,11 @@ echo
 echo "Data directory:"
 
 echo "  $DATA_DIRECTORY"
+
+echo
+
+echo "Container:"
+
+echo "  $CONTAINER_NAME"
 
 echo "============================================================"

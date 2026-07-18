@@ -1,0 +1,1 @@
+TI( p, g ) = ∑ v p v g v ∑ v p v g v + α t ∑ v (1 -g v ) p v + β t ∑ v g v (1 -p v ) , (6)

@@ -1,0 +1,31 @@
+{
+  "text": "The formula for recall is given by the ratio of true positives (TP) to the sum of true positives and false negatives (FN), expressed as a fraction. The numerator contains only one term, TP, while the denominator includes two terms: TP and FN.",
+  "summary": "Recall measures how many positive instances are correctly identified out of all actual positive instances in binary classification problems.",
+  "element_type": "formula",
+  "source": "ollama_vision",
+  "provider": "ollama",
+  "model": "qwen2.5vl:3b",
+  "confidence": 0.95,
+  "warnings": [],
+  "details": {
+    "visible_structure": [
+      "R e c a l l",
+      "=",
+      "\\frac { T P } { T P + F N }"
+    ],
+    "symbols": [
+      {
+        "symbol": "R e c a l l",
+        "visible_role": "name"
+      },
+      {
+        "symbol": "T P",
+        "visible_role": "variable"
+      },
+      {
+        "symbol": "F N",
+        "visible_role": "variable"
+      }
+    ]
+  }
+}

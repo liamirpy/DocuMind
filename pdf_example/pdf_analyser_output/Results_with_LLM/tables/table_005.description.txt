@@ -1,0 +1,3 @@
+The X-Net model consistently outperforms the other two models in terms of all evaluated metrics except for Precision in the Axial plane. The RAX model shows higher Recall values compared to CLCI across all planes but lower Precision values.
+
+This table compares the performance of three models (X-Net, CLCI, and RAX) across different planes (Axial, Sagittal, Coronal) using metrics such as Dice, Precision, Recall, and F1 scores.

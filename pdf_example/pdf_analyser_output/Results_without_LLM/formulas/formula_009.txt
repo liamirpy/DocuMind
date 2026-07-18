@@ -1,0 +1,1 @@
+ˆ P M = ˆ p x M -y + ˆ p y M -z + ˆ p x M -z 3 .
