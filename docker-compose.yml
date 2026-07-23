@@ -1,0 +1,151 @@
+name: documind
+
+include:
+  - path: ./postgreSQL/docker-compose_ngnix.yml
+    env_file: ./postgreSQL/.env
+
+
+
+
+services:
+
+  public-nginx:
+    image: nginx:alpine
+
+    restart: unless-stopped
+
+    ports:
+      - "80:80"
+
+
+    volumes:
+      - type: bind
+        source: ./nginx/public.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+      
+    depends_on:
+      api:
+        condition: service_started
+
+    
+    networks:
+      - public_network
+
+  # ---------------------------------------------------
+  # Express API
+  # ---------------------------------------------------
+
+  api:
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+    
+    restart: unless-stopped
+
+    env_file:
+      - ./backend-api/.env
+    
+    environment:
+      NODE_ENV: development
+
+    expose:
+      - "3000"
+    
+    volumes:
+      - ./backend-api:/app
+      - backend_node_modules:/app/node_modules
+    
+    command: npm run dev
+
+    depends_on:
+      pgbouncer:
+        condition: service_started
+      
+      # redis: 
+      #   condition: service_healthy
+    
+    networks:
+      - public_network
+      - application_network
+      - documind
+
+
+
+volumes:
+  backend_node_modules:
+
+networks:
+  public_network:
+  application_network:
+
+
+
+
+
+  # redis: 
+  #   image: redis:7-alpine
+
+  #   restart: unless-stopped
+
+  #   command: 
+  #     - redis-server
+  #     - --appendonly 
+  #     - "yes"
+
+  #   volumes:
+  #     - redis_data:/data
+
+  #   expose:
+  #     - "6379"
+    
+  #   healthcheck:
+  #     test:
+  #       - CMD
+  #       - redis-cli
+  #       - ping
+  #     interval: 5s
+  #     timeout: 3s
+  #     retries: 10
+
+  #   networks:
+  #     - application_network
+
+
+
+
+
+
+
+
+
+
+
+
+
+# services:
+#   nginx:
+#     build:
+#       context: ./nginx
+#       dockerfile: Dockerfile
+
+#     restart: unless-stopped
+
+#     ports:
+#       - "127.0.0.1:15432:15432"
+
+#     volumes:
+#       - type: bind
+#         source: /srv/DocuMind/nginx/nginx.conf
+#         target: /etc/nginx/nginx.conf
+#         read_only: true
+#         bind:
+#           create_host_path: false
+
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+
+#     networks:
+#       - documind 
+

@@ -20,9 +20,13 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
+    "ollama": "^0.6.3",
     "pg": "^8.22.0"
   },
   "allowScripts": {
     "bcrypt@6.0.0": true
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
   }
 }

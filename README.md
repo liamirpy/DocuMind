@@ -97,4 +97,154 @@ vector search         keyword search
  Return context and sources
 
 
+
+
+
+### process
+
+User upload  PDF 
+
+PDF uploaded sucessfully 
+
+then the PDF will goes to PDF analyser 
+
+when it finished 
+
+The pdf will goes to ingestor for converting to chunk 
+
+After that it will go for indexer to index the data to Opensearch
+
+After that that PDF is ready to talk 
+
+
+
+
+### before all of that 
+
+The postgresql will go up 
+
+The opensearch will go up too 
+
+
  
+
+ containers=$(sudo docker ps -q)
+
+if [ -n "$containers" ]; then
+    sudo docker stop $containers
+else
+    echo "No Docker containers are running."
+fi
+
+
+
+
+
+                         Internet / LAN
+                               |
+                        ports 80 and 443
+                               |
+                         ┌───────────┐
+                         │   Nginx   │
+                         │  Gateway  │
+                         └─────┬─────┘
+                               |
+          ┌────────────────────┼────────────────────┐
+          |                    |                    |
+     api.example.com      tool1.example.com    tool2.example.com
+          |                    |                    |
+    ┌──────────┐         ┌──────────┐         ┌──────────┐
+    │ Node API │         │  Tool 1  │         │  Tool 2  │
+    │   :3000  │         │  :4000   │         │  :5000   │
+    └────┬─────┘         └────┬─────┘         └────┬─────┘
+         |                    |                    |
+         └────────────────────┼────────────────────┘
+                              |
+                     Private data network
+                              |
+          ┌───────────────────┼───────────────────┐
+          |                   |                   |
+     PostgreSQL            Redis             OpenSearch
+       :5432               :6379                :9200
+
+
+      
+      
+
+
+
+
+
+
+                               PUBLIC REQUESTS
+User / Frontend
+       │
+       │ POST /api/documents/upload
+       ▼
+┌──────────────────────────────┐
+│            NGINX             │
+│      Public gateway :80      │
+└──────────────┬───────────────┘
+               │
+               ▼
+        Express API
+               │
+       ┌───────┴────────┐
+       │                │
+       ▼                ▼
+ PostgreSQL        Redis / BullMQ
+                        │
+                        │ job waiting
+                        ▼
+                  Node.js Worker
+                        │
+                        │ POST /pdf-analyser
+                        ▼
+┌──────────────────────────────┐
+│            NGINX             │
+│ Internal load balancer :8080 │
+└──────────────┬───────────────┘
+               │
+       ┌───────┼────────┐
+       ▼       ▼        ▼
+ Analyser 1 Analyser 2 Analyser 3
+
+
+
+
+
+
+
+
+
+
+ User / Frontend
+       │
+       │ POST /api/documents/upload
+       ▼
+┌──────────────────────────────┐
+│         Public NGINX         │
+│             :80              │
+└──────────────┬───────────────┘
+               │
+               ▼
+          Express API
+               │
+       ┌───────┴─────────────┐
+       │                     │
+       ▼                     ▼
+   PgBouncer             Redis / BullMQ
+       │                     │
+       ▼                     ▼
+  PostgreSQL             Node.js Worker
+                               │
+                               │ POST /pdf-analyser
+                               ▼
+                    ┌─────────────────────┐
+                    │   Internal NGINX    │
+                    │        :8080        │
+                    └──────────┬──────────┘
+                               │
+                    ┌──────────┼──────────┐
+                    ▼          ▼          ▼
+                Analyser 1 Analyser 2 Analyser 3

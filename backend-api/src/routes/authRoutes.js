@@ -112,7 +112,7 @@ router.post('/login', async (req,res,next)=>{
                 session_id: sessionResult.rows[0].id
         },
         process.env.JWT_SECRET,
-        {expiresIn: '15 minutes'}
+        {expiresIn: '45 minutes'}
         );
 
 
@@ -304,11 +304,6 @@ router.get("/me", authMiddleware, async (req, res) => {
     }
   });
 });
-
-
-
-
-
 
 
 

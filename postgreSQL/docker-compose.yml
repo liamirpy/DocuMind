@@ -12,7 +12,7 @@ services:
     ports:
       - "127.0.0.1:${PG_PORT:-5432}:5432"
     volumes:
-      - /srv/documind_database/postgresql:/var/lib/postgresql/data
+      - ../data/postgresql:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
@@ -21,26 +21,26 @@ services:
     networks:
       - appnet
 
-  pgbouncer:
-    image: bitnami/pgbouncer:latest
-    restart: unless-stopped
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      POSTGRESQL_HOST: postgres
-      POSTGRESQL_PORT: "5432"
-      POSTGRESQL_USERNAME: ${POSTGRES_USER}
-      POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
-      PGBOUNCER_DATABASE: "*"
-      PGBOUNCER_POOL_MODE: transaction
-      PGBOUNCER_MAX_CLIENT_CONN: "1000"
-      PGBOUNCER_DEFAULT_POOL_SIZE: "50"
-      PGBOUNCER_AUTH_TYPE: scram-sha-256
-    ports:
-      - "127.0.0.1:${PGBOUNCER_PORT:-6432}:6432"
-    networks:
-      - appnet
+#   pgbouncer:
+#     image: bitnami/pgbouncer:latest
+#     restart: unless-stopped
+#     depends_on:
+#       postgres:
+#         condition: service_healthy
+#     environment:
+#       POSTGRESQL_HOST: postgres
+#       POSTGRESQL_PORT: "5432"
+#       POSTGRESQL_USERNAME: ${POSTGRES_USER}
+#       POSTGRESQL_PASSWORD: ${POSTGRES_PASSWORD}
+#       PGBOUNCER_DATABASE: "*"
+#       PGBOUNCER_POOL_MODE: transaction
+#       PGBOUNCER_MAX_CLIENT_CONN: "1000"
+#       PGBOUNCER_DEFAULT_POOL_SIZE: "50"
+#       PGBOUNCER_AUTH_TYPE: scram-sha-256
+#     ports:
+#       - "127.0.0.1:${PGBOUNCER_PORT:-6432}:6432"
+#     networks:
+#       - appnet
 
-volumes:
-  postgres_data:
+# volumes:
+#   postgres_data:

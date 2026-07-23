@@ -1,0 +1,9 @@
+# Copy this file to .env and change the passwords.
+# Never commit your real .env file to GitHub.
+
+POSTGRES_USER=documind
+POSTGRES_PASSWORD=documind12345678
+POSTGRES_DB=documind_postgresql
+
+PG_PORT=5433
+PGBOUNCER_PORT=6433

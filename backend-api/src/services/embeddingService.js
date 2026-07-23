@@ -34,7 +34,6 @@ export async function embedQuestion(question) {
             }
         );
     } catch (cause) {
-        console.log('ffff')
         const error = new Error(`Could not connect to the indexer embedding service: ${cause.message}`);
         error.statusCode=500;
         throw error;

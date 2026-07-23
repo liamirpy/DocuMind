@@ -1,7 +1,7 @@
 // import { opensearchClient,OPENSEARCH_INDEX } from "../config/opensearchClient.js";
-import { response } from "express";
-// import { OPENSEARCH_INDEX, opensearchClient } from "../config/opensearchClient";
+import { json, response } from "express";
 import { embedQuestion } from "./embeddingService.js";
+
 
 
 process.env.OPENSEARCH_NODE="https://localhost:9200"
@@ -11,7 +11,7 @@ process.env.OPENSEARCH_TLS_REJECT_UNAUTHORIZED = "false";
 
 const { OPENSEARCH_INDEX, opensearchClient }= await import( "../config/opensearchClient.js");
 
-
+import { generateRagAnswer } from "./llmService.js";
 
 const SOURCE_FIELDS= [
     "user_id",
@@ -611,12 +611,32 @@ export async function retrieveRagContext({
 
 
     const {context, sources} = buildContext(selectedItems,maxContexChars)
-        
-    console.dir(sources, {
-            depth: null,
-        });
+    
+    return {
+        question,
+        context,
+        sources,
 
+        diagnostics:{
+            embeddingModel:
+                model,
+            
+            embeddingDimensions:
+                dimensions,
+            
+            vectorCandidates:
+                vectorHits.length,
 
+            lexialCandidates:
+                lexialHits.length,
+            
+            fusedCandidates:
+                fusedHits.length,
+            
+            returnedSources:
+                sources.length,
+        }
+    };
 }
 
 
@@ -697,68 +717,89 @@ export async function retrieveRagContext({
 
 try {
 
-    const textSearch = await lexialSearch({
-        question: "S TROKE is a leading cause of disability and mortality worldwide ",
-        userId: "user_123",
-        documentIds: ["doc_456"],
-        candidateK: 5,
-    });
+//     const textSearch = await lexialSearch({
+//         question: "What is Residual Attention?",
+//         userId: "user_123",
+//         documentIds: ["doc_456"],
+//         candidateK: 5,
+//     });
 
 
 
-  async function embedingQuestion(question) {
-  try {
-    const result = await embedQuestion(question);
+//   async function embedingQuestion(question) {
+//   try {
+//     const result = await embedQuestion(question);
 
-    return result.embedding;
-  } catch (error) {
-    console.error("Status:", error.statusCode);
-    console.error("Message:", error.message);
+//     return result.embedding;
+//   } catch (error) {
+//     console.error("Status:", error.statusCode);
+//     console.error("Message:", error.message);
 
-    throw error;
-  }
-}
+//     throw error;
+//   }
+// }
 
 
 
-  const embeded_question =
-    await embedingQuestion("what is stroke?");
+//   const embeded_question =
+//     await embedingQuestion("What is Residual Attention?");
 
-  const vectorSearchoutput = await vectorSearch({
-    vector: embeded_question,
-    userId: "user_123",
-    documentIds: ["doc_456"],
-    candidateK: 5,
-  });
+//   const vectorSearchoutput = await vectorSearch({
+//     vector: embeded_question,
+//     userId: "user_123",
+//     documentIds: ["doc_456"],
+//     candidateK: 5,
+//   });
 
 
 //   console.dir(vectorSearchoutput, {
 //     depth: null,
 //   });
 
-const ranking= await reciprocalRankFusion({
-    vectorHits: vectorSearchoutput,
-    lexialHits: textSearch,
-    limit: 5,
-    rrfk: 60,
-    vectorWeight: 1,
-    lexicalWeight: 0.7
-})
+// const ranking= await reciprocalRankFusion({
+//     vectorHits: vectorSearchoutput,
+//     lexialHits: textSearch,
+//     limit: 5,
+//     rrfk: 60,
+//     vectorWeight: 1,
+//     lexicalWeight: 0.7
+// })
 
 //  console.dir(ranking[0], {
 //     depth: null,
 //   });
 
 
-const finalbag= retrieveRagContext({
-    question:"What is the Stroke?",
+const finalRAG= await retrieveRagContext({
+    question:"Tell me about the performance of this model?",
     userId: "user_123",
     documentIds: ["doc_456"],
-    candidateK:30 ,
+    candidateK:10 ,
 
-    topK:5,
+    topK:2,
     })
 
+
+// console.dir(finalbag, {
+//     depth: null,
+//     colors: true,
+// });
+
+const jsonRAG=JSON.stringify(finalRAG,null,2)
+// console.log(typeof jsonRAG)
+// console.log(finalRAG.context)
+
+const final_context= finalRAG.context;
+console.log(final_context)
+
+const LLMresponse=await generateRagAnswer({
+    question: "Tell me about the performance of this model?",
+    context: final_context
+})
+
+console.log(JSON.stringify(LLMresponse,null,2))
+
+// const LLMresponse= await
 
 
 
