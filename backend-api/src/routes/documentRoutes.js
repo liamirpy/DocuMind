@@ -5,14 +5,13 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { pool } from '../db/pool.js';
 import { authMiddleware } from '../middleware/authMiddleware.js';
+import { documentQueue } from '../queues/documentQueue.js';
 
 const router = express.Router();
 
 router.use(authMiddleware);
 
 const uploadDir = process.env.UPLOAD_DIR || 'src/uploads';
-
-
 
 function getFileType(filename) {
     const lowerName = filename.toLowerCase();
@@ -75,6 +74,11 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
 
     try {
         const { folder_id } = req.body;
+
+
+        if(!folder_id){
+            return res.status(400).json({error: "You have to define the folder"})
+        }
 
         if (!req.file) {
             return res.status(400).json({ error: 'No file uploaded' });
@@ -167,12 +171,46 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
 
         await client.query('COMMIT');
 
+        if (fileType=='pdf'){
+            const job= await documentQueue.add(
+                'process-document',
+                {
+                    documentId: document.id,
+                    userId: req.user.id,
+                    storageKey,
+                    originalFilename: req.file.originalname,
+                    mimetype: req.file.mimetype
+                },
+                {
+                jobId: `document-${document.id}`
+                }
+            );
+
+            res.status(201).json({
+                    document: {
+                        ...document,
+                        folder_id: folder_id || null
+                    },
+                    processing_job: {
+                        id: job.id,
+                        name: job.name,
+                        status: 'queued'
+                    }
+                });
+        }
+        else{
+
+
         res.status(201).json({
             document: {
                 ...document,
                 folder_id: folder_id || null
             }
         });
+
+
+        }
+
     } catch (error) {
         await client.query('ROLLBACK');
 

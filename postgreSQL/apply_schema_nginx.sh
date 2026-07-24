@@ -7,14 +7,16 @@ SCRIPT_DIR="$(
   pwd
 )"
 
-ENV_FILE="$SCRIPT_DIR/.env"
+PROJECT_DIR="$(
+  cd -- "$SCRIPT_DIR/.."
+  pwd
+)"
+
 SCHEMA_FILE="$SCRIPT_DIR/schema.sql"
 
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "ERROR: Environment file not found:"
-  echo "  $ENV_FILE"
-  exit 1
-fi
+# Change this if your PostgreSQL service has another name,
+# such as postgresql, db, or database.
+POSTGRES_SERVICE="${POSTGRES_SERVICE:-postgres}"
 
 if [[ ! -f "$SCHEMA_FILE" ]]; then
   echo "ERROR: Schema file not found:"
@@ -22,38 +24,52 @@ if [[ ! -f "$SCHEMA_FILE" ]]; then
   exit 1
 fi
 
-if ! command -v psql >/dev/null 2>&1; then
-  echo "ERROR: psql is not installed."
-  echo
-  echo "Install it on Ubuntu/Debian with:"
-  echo "  sudo apt update"
-  echo "  sudo apt install -y postgresql-client"
+if ! command -v docker >/dev/null 2>&1; then
+  echo "ERROR: Docker is not installed."
   exit 1
 fi
 
-set -a
-# shellcheck disable=SC1090
-source "$ENV_FILE"
-set +a
+if ! command -v sudo >/dev/null 2>&1; then
+  echo "ERROR: sudo is not installed."
+  exit 1
+fi
 
-: "${POSTGRES_USER:?POSTGRES_USER is missing in .env}"
-: "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is missing in .env}"
-: "${POSTGRES_DB:?POSTGRES_DB is missing in .env}"
+cd "$PROJECT_DIR"
 
-# These can be overridden when running the script.
-DB_HOST="${DB_HOST:-127.0.0.1}"
-DB_PORT="${DB_PORT:-15432}"
+echo "Checking Docker permissions..."
 
-echo "Checking PostgreSQL through ${DB_HOST}:${DB_PORT}..."
+if ! sudo docker info >/dev/null 2>&1; then
+  echo "ERROR: Docker is not running or sudo cannot access Docker."
+  echo
+  echo "Try:"
+  echo "  sudo systemctl start docker"
+  exit 1
+fi
+
+if ! sudo docker compose config --services | grep -Fxq "$POSTGRES_SERVICE"; then
+  echo "ERROR: PostgreSQL Compose service '$POSTGRES_SERVICE' was not found."
+  echo
+  echo "Available services:"
+  sudo docker compose config --services
+  echo
+  echo "Run the script with the correct service name, for example:"
+  echo "  POSTGRES_SERVICE=postgresql sudo -E $0"
+  exit 1
+fi
+
+echo "Starting PostgreSQL service: $POSTGRES_SERVICE"
+
+sudo docker compose up -d "$POSTGRES_SERVICE"
+
+echo "Waiting for PostgreSQL..."
 
 POSTGRES_READY=false
 
 for attempt in $(seq 1 30); do
-  if PGPASSWORD="$POSTGRES_PASSWORD" pg_isready \
-    --host="$DB_HOST" \
-    --port="$DB_PORT" \
-    --username="$POSTGRES_USER" \
-    --dbname="$POSTGRES_DB" \
+  if sudo docker compose exec -T "$POSTGRES_SERVICE" \
+    sh -c 'pg_isready \
+      --username "$POSTGRES_USER" \
+      --dbname "$POSTGRES_DB"' \
     >/dev/null 2>&1
   then
     POSTGRES_READY=true
@@ -66,17 +82,19 @@ done
 
 if [[ "$POSTGRES_READY" != "true" ]]; then
   echo "ERROR: PostgreSQL did not become ready."
+  echo
+  echo "Recent PostgreSQL logs:"
+  sudo docker compose logs --tail=100 "$POSTGRES_SERVICE"
   exit 1
 fi
 
-echo "Applying schema to database: $POSTGRES_DB"
+echo "Applying schema to PostgreSQL..."
 
-PGPASSWORD="$POSTGRES_PASSWORD" psql \
-  --host="$DB_HOST" \
-  --port="$DB_PORT" \
-  --username="$POSTGRES_USER" \
-  --dbname="$POSTGRES_DB" \
-  --set=ON_ERROR_STOP=1 \
-  --file="$SCHEMA_FILE"
+sudo docker compose exec -T "$POSTGRES_SERVICE" \
+  sh -c 'psql \
+    --username "$POSTGRES_USER" \
+    --dbname "$POSTGRES_DB" \
+    --set=ON_ERROR_STOP=1' \
+  < "$SCHEMA_FILE"
 
 echo "Schema applied successfully."

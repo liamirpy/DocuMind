@@ -38,8 +38,6 @@ echo "Building Nginx..."
 
 
 
-
-
 echo "Creating PosgreSQL data directory"
 
 mkdir -p "$DATA_DIR/postgreSQL"
@@ -56,7 +54,30 @@ sed -i.bak '/^DATA_DIR=/d' "$ENV_FILE"
 printf 'DATA_DIR=%s\n' "$DATA_DIR/postgreSQL" >> "$ENV_FILE"
 rm -f "$ENV_FILE.bak"
 
-echo "Saved DATA_DIR to $ENV_FILE"
+echo "Saved DATA_DIR to $ENV_FILE for PostgreSQL"
+
+
+
+
+
+
+echo "Creating user data (uploding) directory"
+
+mkdir -p "$DATA_DIR/users"
+
+echo "Data folder: $DATA_DIR/users"
+
+echo "Adding data diretory in Node js env file"
+
+ENV_FILE="$ROOT_DIR/backend-api/.env"
+touch "$ENV_FILE"
+
+# Remove an existing DATA_DIR entry, then add the current value.
+sed -i.bak '/^UPLOAD_DIR=/d' "$ENV_FILE"
+printf 'UPLOAD_DIR=%s\n' "$DATA_DIR/users" >> "$ENV_FILE"
+rm -f "$ENV_FILE.bak"
+
+echo "Saved UPLOAD_DIR to $ENV_FILE for PostgreSQL"
 
 
 
@@ -64,7 +85,10 @@ echo "Saved DATA_DIR to $ENV_FILE"
 
 
 
-echo "Starting PostgreSQL/pgbouncer and Nginx..."
+
+
+
+echo "Starting PostgreSQL/pgbouncer and public Nginx..."
 
 "${DOCKER[@]}" compose up \
   -d \
@@ -73,22 +97,14 @@ echo "Starting PostgreSQL/pgbouncer and Nginx..."
   public-nginx \
   api
 
-# echo "Applying PostgreSQL schema through Nginx..."
-# echo $ROOT_DIR
-# DB_HOST=127.0.0.1 \
-# DB_PORT=15432 \
-# bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
 
-# echo
-# echo "Container status:"
+chmod +x "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
+bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
+
+echo
+echo "Container status:"
 
 "${DOCKER[@]}" compose ps
 
-# echo
-# echo "PostgreSQL is available through:"
-# echo "  127.0.0.1:15432"
 
 
-
-
-# echo "Starting pdf-analyser (PaperMind)"
