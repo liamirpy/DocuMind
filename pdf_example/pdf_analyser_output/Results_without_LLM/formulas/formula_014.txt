@@ -1,1 +1,0 @@
-DSC = 2 TP 2 TP + FP + FN . (4c)

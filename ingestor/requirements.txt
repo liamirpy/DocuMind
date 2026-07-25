@@ -1,0 +1,5 @@
+opensearch-py>=3.2,<4
+pydantic>=2.12,<3
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
+python-multipart>=0.0.20,<1

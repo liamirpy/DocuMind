@@ -1,0 +1,16 @@
+services:
+  ingestor-api:
+    build:
+      context: .
+    image: documind-ingestor-api:2.0.0
+    env_file:
+      - .env
+    ports:
+      - "${INGESTOR_API_PORT:-8080}:8080"
+    networks:
+      - documind
+    restart: unless-stopped
+
+networks:
+  documind:
+    external: true

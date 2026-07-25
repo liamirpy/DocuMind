@@ -1,7 +1,0 @@
-Plane,Aggregation,Dice,Precision,Recall
-Axial,No,0.8016 0.8451,0.8612 0.9019,0.8748 0.8807
-,Yes,,,
-Sagittal,No,0.8231,0.8830,0.8951
-,Yes,0.8753,0.9331,0.9022
-Coronal,No,0.8184,0.8984,0.8712
-,Yes,0.8633,0.9156,0.8987

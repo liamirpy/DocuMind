@@ -1,1 +1,0 @@
-L FL = -1 | Ω | ∑ v ∈ Ω [ α f g v (1 -p v ) γ f log p v +(1 -α f ) (1 -g v ) p γ f v log(1 -p v ) ] . (5)

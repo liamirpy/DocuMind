@@ -1,3 +1,0 @@
-This mathematical expression calculates an index (TI) that combines two weighted averages: one based on product terms involving probabilities and gains, and another based on a combination of non-zero products involving either gains or probabilities being zero. This is often used in machine learning for feature importance calculation.
-
-The formula represents a weighted average of two terms, where the first term is the sum of products of probabilities and gains for each vertex, and the second term includes additional weights based on whether the gain or probability is zero. The formula uses summation notation to represent these sums over all vertices.

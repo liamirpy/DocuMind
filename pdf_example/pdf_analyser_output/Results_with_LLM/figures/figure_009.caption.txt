@@ -1,1 +1,0 @@
-Fig. 8. Representative 3D visualization: (a-c) planes (Axial, Sagittal, and Coronal), (d) ground-truth mask, and (e) final segmentation after aggregation.

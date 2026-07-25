@@ -1,6 +1,0 @@
-The formula appears to describe a relationship between two variables \hat { p } _ { y - z } ^ { M } and S _ { y - z } ^ { M }, where f _ { y - z } is applied to these variables. The indices "y-z" suggest specific conditions or states, while the superscript "M" indicates a mode or statistical measure.
-
-The formula represents a mathematical expression involving indices and subscripts. It includes the following components:
-- \hat { p } _ { y - z } ^ { M } : This is an indexed variable representing a property or measurement with index "M" for mode, subscript "y-z" indicating specific conditions or states.
-- f _ { y - z } : This represents a function applied to the indices "y-z", possibly describing a transformation or calculation based on these indices.
-- S _ { y - z } ^ { M } : This is another indexed variable representing a state or measurement with index "M" for mode, subscript "y-z" indicating specific conditions or states. The superscript indicates that this might be the standard deviation or some other statistical measure related to the indices.

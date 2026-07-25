@@ -1,1 +1,0 @@
-Fig. 4. Architecture of the proposed RAX-Net, showing encoder-decoder design, residual connections, and residual attention blocks.

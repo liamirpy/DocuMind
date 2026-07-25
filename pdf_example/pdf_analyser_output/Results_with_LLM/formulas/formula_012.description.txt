@@ -1,3 +1,0 @@
-The precision formula shows that it's calculated by dividing the number of true positive results (TP) by the total count of all predicted positives (TP + FP). This is a common measure used to evaluate the performance of binary classification models in machine learning. The symbol 'Precision' stands for this ratio.
-
-The formula for precision is given by the ratio of true positives (TP) to the sum of true positives and false positives (FP). The symbol 'Precision' represents this ratio. The formula is written as a fraction with TP in the numerator and TP + FP in the denominator, enclosed within parentheses labeled as equation 4a.

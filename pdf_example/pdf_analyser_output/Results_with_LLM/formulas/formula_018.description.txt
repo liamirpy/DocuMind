@@ -1,5 +1,0 @@
-The formula combines two different types of loss functions into one using a weighted average approach.
-
-The formula represents a weighted combination of two loss functions: \
-
-denoted as \\mathcal{L}_{FT}\\, which is the final loss function. The weights are given by \lambda and (1-λ), where λ is a parameter that can be adjusted to balance between TL and FL losses.

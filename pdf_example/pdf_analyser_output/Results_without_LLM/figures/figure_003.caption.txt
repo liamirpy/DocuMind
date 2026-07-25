@@ -1,1 +1,0 @@
-Fig. 2. Decomposition of a 3D MRI scan into axial, sagittal, and coronal planes. Blue, red, and green rectangles indicate the superior-inferior (axial), anterior-posterior (sagittal), and left-right (coronal) axes, respectively.

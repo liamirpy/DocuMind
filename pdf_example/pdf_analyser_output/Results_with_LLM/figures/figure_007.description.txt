@@ -1,3 +1,0 @@
-The figure compares lesion voxel sizes across different datasets, showing variations in distribution density and ranges.
-
-The figure shows two plots comparing voxel sizes of lesions in different datasets: a histogram for 655 subjects, an orange bar for 524 subjects, and another blue bar for 112 subjects; and a box plot for axial plane lesion pixel sizes from the 524-case set. The histograms indicate that the distribution of lesion voxel sizes varies across these groups, with different ranges and densities. The box plots show the median (line inside the box), quartiles (bottom and top edges of the box), and whiskers (extending to the furthest data points within 1.5 times the interquartile range).

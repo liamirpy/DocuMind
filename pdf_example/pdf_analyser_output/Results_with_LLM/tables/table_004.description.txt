@@ -1,3 +1,0 @@
-The table shows that the average Dice scores are highest for the Axial plane with an average of 0.7104 ± 0.0127, followed by the Coronal plane at 0.6875 ± 0.0137, and the Sagittal plane with 0.6217 ± 0.0157.
-
-This table presents the performance metrics of a proposed model across five folds for three different planes (Axial, Sagittal, and Coronal) in terms of Dice score, Precision, and Recall.

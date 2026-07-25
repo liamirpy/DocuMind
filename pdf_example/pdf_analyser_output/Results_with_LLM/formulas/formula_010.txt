@@ -1,1 +1,0 @@
-P M = T ( ˆ P M ) = { 1 , ˆ P M ≥ 0 . 5 , 0 , otherwise .

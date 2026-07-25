@@ -1,3 +1,0 @@
-The table shows that X-Net has a consistent short training time of approximately 9 hours regardless of the plane (axial, sagittal, or coronal), while CLCI and RAX have varying training times. Prediction times are also shown for each model in all three planes, with X-Net consistently having the shortest prediction time. The parameter count is identical across all models.
-
-This table compares the training and prediction times for different models across three planes, along with their respective parameter counts.

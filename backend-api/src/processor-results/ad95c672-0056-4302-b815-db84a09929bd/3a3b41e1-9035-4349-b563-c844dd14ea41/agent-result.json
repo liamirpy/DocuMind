@@ -1,0 +1,13 @@
+{"schema_version":"0.3.0",
+"status":"completed",
+"document_id":"d3cccac567c905ac32a068ac45d63664bb7bb54f7391a4c3b610561ffe7aeda2",
+"package_name":"Results_example_1",
+"output_folder":"Results_example_1",
+"package_directory":"/data/outputs/Results_example_1",
+"canonical_json":"/data/outputs/Results_example_1/canonical_document.json",
+"zip_file":"/data/outputs/Results_example_1.zip",
+"urls":{"assets_base":"/packages/Results_example_1/",
+"canonical_json":"/packages/Results_example_1/canonical_document.json",
+"zip":"/packages/Results_example_1.zip",
+"download":"/v1/packages/Results_example_1/download"},
+"quality":{"status":"green","score":1.0,"thresholds":{"green":0.9,"yellow":0.65},"issue_count":1,"issues":[{"severity":"info","type":"low_cross_parser_alignment","element_type":"figures","element_id":"figure_001","confidence":0.4,"message":"Docling/GROBID alignment confidence is low."}],"parser_status":{"docling":"completed","grobid":"completed"}},"counts":{"text_blocks":25,"paragraphs":9,"sections":6,"root_sections":6,"figures":3,"tables":1,"formulas":1,"references":0},"warnings":[],"processing":{"extraction_seconds":2.909,"canonicalization_seconds":0.061,"total_seconds":2.97}}

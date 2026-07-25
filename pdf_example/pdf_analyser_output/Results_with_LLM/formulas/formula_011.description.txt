@@ -1,9 +1,0 @@
-The formula represents three different orientations or axes with a sequence of numerical values. The last value in each set is represented by the symbol '∞', which stands for infinity.
-
-The visible mathematical formula consists of three separate sets, each representing different orientations or axes. Each set is enclosed in square brackets and contains a sequence of numerical values separated by commas. The last value in each set is represented by the symbol '∞', which stands for infinity. Here are the details: 
-
-**axial:** [0, 200, 500, 1000, 2000, 3000, ∞)
-
-**sagittal:** [0, 500, 1000, 2000, 3000, 5000, ∞)
-
-**coronal:** [0, 200, 500, 1000, 2000, 3000, ∞)

@@ -1,3 +1,0 @@
-The table shows that the proposed 'FocalTversky' loss function outperforms others in terms of all evaluated metrics: Dice (0.7904 vs 0.7326 to 0.7859), Precision (0.7963 vs 0.7302 to 0.8430), Recall (0.7894 vs 0.7427 to 0.7406), and F1 score (0.7928 vs 0.7364 to 0.7889).
-
-This table compares the performance of different loss functions on a dataset, specifically focusing on the first axial fold. The rows represent various loss functions tested, and the columns show metrics such as Dice, Precision, Recall, and F1 scores.

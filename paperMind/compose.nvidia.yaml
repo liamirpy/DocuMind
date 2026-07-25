@@ -1,0 +1,33 @@
+services:
+  extractor-api:
+    image: ${EXTRACTOR_GPU_IMAGE:-pdf-analyser-extractor:0.3.0-cu126}
+    build:
+      args:
+        TORCH_INDEX_URL: ${PYTORCH_CUDA_INDEX_URL:-https://download.pytorch.org/whl/cu126}
+        TORCH_VERSION: ${PYTORCH_VERSION:-2.11.0}
+        TORCHVISION_VERSION: ${TORCHVISION_VERSION:-0.26.0}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      DOCLING_ACCELERATOR_DEVICE: cuda
+      DOCLING_OCR_BACKEND: torch
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility
+
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    environment:
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_SERVER_KEEP_ALIVE:-0}
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: compute,utility

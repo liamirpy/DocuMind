@@ -1,7 +1,0 @@
-The table shows that for each metric:
-- The Dice score is approximately 0.61.
-- Precision ranges from about 0.68 to 0.7 (with a standard deviation).
-- Recall also varies between roughly 0.64 and 0.63, with similar precision in its range.
-- Volume Difference indicates a significant difference of around 6500 units.
-
-This table presents the aggregated results of a subject-level analysis on 112 3D MRI cases, focusing on four metrics: Dice score, Precision, Recall, and Volume Difference.

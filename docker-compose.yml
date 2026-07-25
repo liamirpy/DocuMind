@@ -1,151 +1,222 @@
 name: documind
 
 include:
+  # ---------------------------------------------------
+  # PostgreSQL stack
+  # ---------------------------------------------------
   - path: ./postgreSQL/docker-compose_ngnix.yml
     env_file: ./postgreSQL/.env
 
-
+  # ---------------------------------------------------
+  # PDF analyser GPU stack
+  #
+  # compose.yaml contains the complete services.
+  # compose.nvidia.yaml adds the NVIDIA configuration.
+  # ---------------------------------------------------
+  - path:
+      - ./paperMind/compose.nginx.yaml
+      - ./paperMind/compose.nvidia.nginx.yaml
+    project_directory: ./paperMind
+    env_file: ./paperMind/.env
 
 
 services:
 
+  # ---------------------------------------------------
+  # Public Nginx
+  # ---------------------------------------------------
   public-nginx:
     image: nginx:alpine
-
     restart: unless-stopped
 
     ports:
       - "80:80"
-
 
     volumes:
       - type: bind
         source: ./nginx/public.conf
         target: /etc/nginx/nginx.conf
         read_only: true
-      
+
     depends_on:
       api:
         condition: service_started
 
-    
     networks:
       - public_network
+
 
   # ---------------------------------------------------
   # Express API
   # ---------------------------------------------------
-
   api:
+    user: "1000:1000"
+
     build:
       context: ./backend-api
       dockerfile: Dockerfile
-    
+
     restart: unless-stopped
 
     env_file:
       - ./backend-api/.env
-    
+
     environment:
       NODE_ENV: development
 
+      REDIS_URL: redis://redis:6379
+
+      # Express sends extraction requests to the
+      # dedicated internal Nginx load balancer.
+      EXTRACTOR_API_URL: http://extractor-load-balancer:8080
+
     expose:
       - "3000"
-    
+
     volumes:
       - ./backend-api:/app
       - backend_node_modules:/app/node_modules
-    
+      - ./data/users:/data/users
+
     command: npm run dev
 
     depends_on:
       pgbouncer:
         condition: service_started
-      
-      # redis: 
-      #   condition: service_healthy
-    
+
+      redis:
+        condition: service_healthy
+
+      extractor-load-balancer:
+        condition: service_healthy
+
     networks:
       - public_network
       - application_network
+
+      # This network is assumed to be provided by the
+      # PostgreSQL included Compose file.
       - documind
 
 
 
+    
+  document-worker:
+    user: "1000:1000"
+
+    build:
+      context: ./backend-api
+      dockerfile: Dockerfile
+
+    env_file:
+      - ./backend-api/.env
+
+    environment:
+      NODE_ENV: development
+      REDIS_URL: redis://redis:6379
+      EXTRACTOR_API_URL: http://extractor-load-balancer:8080
+
+    volumes:
+      - ./backend-api:/app
+      - backend_node_modules:/app/node_modules
+      - ./data/users:/data/users
+
+    command: npm run worker:documents
+
+    restart: unless-stopped
+
+    depends_on:
+      redis:
+        condition: service_healthy
+
+      pgbouncer:
+        condition: service_started
+
+      extractor-load-balancer:
+        condition: service_healthy
+
+    networks:
+      - application_network
+      - documind
+      - default
+
+
+
+  # ---------------------------------------------------
+  # Redis
+  # ---------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+
+    expose:
+      - "6379"
+
+    volumes:
+      - redis_data:/data
+
+    healthcheck:
+      test:
+        - CMD
+        - redis-cli
+        - ping
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+    networks:
+      - application_network
+
+
+  # ---------------------------------------------------
+  # Extractor API internal load balancer (PaperMind)
+  # ---------------------------------------------------
+  extractor-load-balancer:
+    image: nginx:alpine
+    restart: unless-stopped
+
+    expose:
+      - "8080"
+
+    volumes:
+      - type: bind
+        source: ./nginx/extractor-load-balancer.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+    depends_on:
+      extractor-api:
+        condition: service_started
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+    networks:
+      # The PDF analyser services are assumed to use
+      # the included application's default network.
+      - default
+
+      # Allows the Express API to reach this load balancer.
+      - application_network
+
+
 volumes:
   backend_node_modules:
+  redis_data:
+
 
 networks:
   public_network:
   application_network:
-
-
-
-
-
-  # redis: 
-  #   image: redis:7-alpine
-
-  #   restart: unless-stopped
-
-  #   command: 
-  #     - redis-server
-  #     - --appendonly 
-  #     - "yes"
-
-  #   volumes:
-  #     - redis_data:/data
-
-  #   expose:
-  #     - "6379"
-    
-  #   healthcheck:
-  #     test:
-  #       - CMD
-  #       - redis-cli
-  #       - ping
-  #     interval: 5s
-  #     timeout: 3s
-  #     retries: 10
-
-  #   networks:
-  #     - application_network
-
-
-
-
-
-
-
-
-
-
-
-
-
-# services:
-#   nginx:
-#     build:
-#       context: ./nginx
-#       dockerfile: Dockerfile
-
-#     restart: unless-stopped
-
-#     ports:
-#       - "127.0.0.1:15432:15432"
-
-#     volumes:
-#       - type: bind
-#         source: /srv/DocuMind/nginx/nginx.conf
-#         target: /etc/nginx/nginx.conf
-#         read_only: true
-#         bind:
-#           create_host_path: false
-
-#     depends_on:
-#       postgres:
-#         condition: service_healthy
-
-#     networks:
-#       - documind 
-

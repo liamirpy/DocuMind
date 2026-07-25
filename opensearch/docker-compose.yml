@@ -30,7 +30,7 @@ services:
     volumes:
       # Left side: directory on your PC
       # Right side: OpenSearch data directory in the container
-      - /srv/documind_database/opensearch:/usr/share/opensearch/data
+      - ../data/opensearch:/usr/share/opensearch/data
 
     ulimits:
       memlock:
@@ -55,5 +55,5 @@ networks:
 
 
 # curl -k \
-#   -u "admin:DOCUMIND_opensearch_password_2026!" \
+#   -u "admin:DOCUMIND_opensearch_password_2026" \
 #   https://localhost:9200
