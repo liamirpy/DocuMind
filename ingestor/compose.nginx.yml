@@ -5,12 +5,9 @@ services:
     image: documind-ingestor-api:2.0.0
     env_file:
       - .env
-    ports:
-      - "${INGESTOR_API_PORT:-8080}:8080"
+    expose:
+      - "8080"
     networks:
-      - documind
+      - default
     restart: unless-stopped
 
-networks:
-  documind:
-    external: true

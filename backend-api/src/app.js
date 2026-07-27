@@ -5,6 +5,8 @@ import { errorMiddleware } from "./middleware/errorMiddleware.js";
 import authRoutes from "./routes/authRoutes.js"
 import folderRoutes from "./routes/folderRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
+import ragRoutes from "./routes/ragRoutes.js"
+
 const app = express();
 
 app.use(cors({
@@ -30,6 +32,7 @@ app.use('/api/auth',authRoutes)
 app.use("/api/folders", folderRoutes);
 app.use("/api/documents", documentRoutes);
 
+app.use("/api/rag", ragRoutes);
 
 app.use(errorMiddleware);
 

@@ -1,0 +1,80 @@
+services:
+  opensearch-init-permissions:
+    image: alpine:3.21
+    user: "0:0"
+    restart: "no"
+
+    command:
+      - sh
+      - -c
+      - |
+        mkdir -p /usr/share/opensearch/data
+        chown -R 1000:1000 /usr/share/opensearch/data
+        chmod -R u+rwX /usr/share/opensearch/data
+
+    volumes:
+      - ../data/opensearch:/usr/share/opensearch/data
+
+
+
+  opensearch:
+    image: opensearchproject/opensearch:3.7.0
+
+
+    environment:
+      - cluster.name=documind-cluster
+      - node.name=documind-node
+
+      # Run only one OpenSearch node
+      - discovery.type=single-node
+      
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=DOCUMIND_opensearch_password_2026
+
+      # Local development only
+      # - DISABLE_INSTALL_DEMO_CONFIG=true
+      # - DISABLE_SECURITY_PLUGIN=true
+
+      # Java memory
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+
+      # Prevent memory swapping
+      - bootstrap.memory_lock=true
+    # ports:
+    #   - "127.0.0.1:9200"
+
+    expose:
+      - "9200"
+      - "9600"
+
+    volumes:
+      # Left side: directory on your PC
+      # Right side: OpenSearch data directory in the container
+      - ../data/opensearch:/usr/share/opensearch/data
+
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+
+      nofile:
+        soft: 65536
+        hard: 65536
+
+    
+    depends_on:
+      opensearch-init-permissions:
+        condition: service_completed_successfully
+
+
+
+    networks:
+      - default
+
+    restart: unless-stopped
+
+
+
+
+# curl -k \
+#   -u "admin:DOCUMIND_opensearch_password_2026" \
+#   https://localhost:9200

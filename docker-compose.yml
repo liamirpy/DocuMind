@@ -8,16 +8,36 @@ include:
     env_file: ./postgreSQL/.env
 
   # ---------------------------------------------------
-  # PDF analyser GPU stack
-  #
-  # compose.yaml contains the complete services.
-  # compose.nvidia.yaml adds the NVIDIA configuration.
+  # PaperMind GPU stack
   # ---------------------------------------------------
   - path:
       - ./paperMind/compose.nginx.yaml
       - ./paperMind/compose.nvidia.nginx.yaml
     project_directory: ./paperMind
     env_file: ./paperMind/.env
+
+  # ---------------------------------------------------
+  # Document indexer
+  # ---------------------------------------------------
+  - path: ./indexer/docker-compose.nginx.yml
+    project_directory: ./indexer
+    env_file: ./indexer/.env
+
+ # ---------------------------------------------------
+  # OpenSearch
+  # ---------------------------------------------------
+  - path: ./opensearch/docker-compose.nginx.yml
+    project_directory: ./opensearch
+
+
+
+ # ---------------------------------------------------
+  # Ingester
+  # ---------------------------------------------------
+  - path: ./ingestor/compose.nginx.yml
+    project_directory: ./ingestor
+
+
 
 
 services:
@@ -50,7 +70,7 @@ services:
   # Express API
   # ---------------------------------------------------
   api:
-    user: "1000:1000"
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
     build:
       context: ./backend-api
@@ -64,11 +84,6 @@ services:
     environment:
       NODE_ENV: development
 
-      REDIS_URL: redis://redis:6379
-
-      # Express sends extraction requests to the
-      # dedicated internal Nginx load balancer.
-      EXTRACTOR_API_URL: http://extractor-load-balancer:8080
 
     expose:
       - "3000"
@@ -90,31 +105,33 @@ services:
       extractor-load-balancer:
         condition: service_healthy
 
+      # opensearch:
+      #   condition: service_healthy
+
     networks:
       - public_network
       - application_network
-
-      # This network is assumed to be provided by the
-      # PostgreSQL included Compose file.
       - documind
+      - default
 
 
-
-    
+  # ---------------------------------------------------
+  # Document-processing worker
+  # ---------------------------------------------------
   document-worker:
-    user: "1000:1000"
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
     build:
       context: ./backend-api
       dockerfile: Dockerfile
+
+    restart: unless-stopped
 
     env_file:
       - ./backend-api/.env
 
     environment:
       NODE_ENV: development
-      REDIS_URL: redis://redis:6379
-      EXTRACTOR_API_URL: http://extractor-load-balancer:8080
 
     volumes:
       - ./backend-api:/app
@@ -123,8 +140,6 @@ services:
 
     command: npm run worker:documents
 
-    restart: unless-stopped
-
     depends_on:
       redis:
         condition: service_healthy
@@ -132,14 +147,25 @@ services:
       pgbouncer:
         condition: service_started
 
-      extractor-load-balancer:
+      agent-api:
         condition: service_healthy
 
+      indexer-api:
+        condition: service_healthy
+
+      # opensearch:
+      #   condition: service_healthy
+
     networks:
-      - application_network
-      - documind
+      # PaperMind and indexer included services use
+      # the default Compose network.
       - default
 
+      # Redis
+      - application_network
+
+      # PostgreSQL/PgBouncer
+      - documind
 
 
   # ---------------------------------------------------
@@ -175,7 +201,7 @@ services:
 
 
   # ---------------------------------------------------
-  # Extractor API internal load balancer (PaperMind)
+  # PaperMind extractor load balancer
   # ---------------------------------------------------
   extractor-load-balancer:
     image: nginx:alpine
@@ -197,18 +223,17 @@ services:
     healthcheck:
       test:
         - CMD-SHELL
-        - wget -q -O /dev/null http://127.0.0.1:8080/health || exit 1
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
+        - >-
+          wget -q -O /dev/null
+          http://127.0.0.1:8080/health/ready
+          || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
 
     networks:
-      # The PDF analyser services are assumed to use
-      # the included application's default network.
       - default
-
-      # Allows the Express API to reach this load balancer.
       - application_network
 
 
@@ -218,5 +243,6 @@ volumes:
 
 
 networks:
+  default:
   public_network:
   application_network:

@@ -1,3 +1,7 @@
+
+import 'dotenv/config';
+
+
 export async function embedQuestion(question) {
     const normalizedQuestion = question?.trim();
 
@@ -8,8 +12,10 @@ export async function embedQuestion(question) {
     };
     console.log(process.env.INDEXER_BASE_URL)
     const baseUrl = (process.env.INDEXER_BASE_URL ||
-        "http://localhost:8000"
+        "http://indexer-api:8000"
     ).replace(/\/$/, "");
+
+    console.log('ffff',baseUrl)
 
 
     const headers = {

@@ -1,9 +1,5 @@
 import {OLLAMA_MODEL, ollamaClient } from "../config/ollamaClient.js";
 
-
-
-
-
 const RAG_SYSTEM_PROMPT = `
 You are a document question-answering assistant.
 
@@ -29,6 +25,8 @@ Ischemic stroke accounts for approximately 62% of cases globally [S1].
 Incorrect example:
 Stroke is classified into ischemic stroke and hemorrhagic stroke.
 `.trim();
+
+
 
 export async function generateRagAnswer({
     question,
@@ -147,9 +145,4 @@ export async function generateRagAnswer({
 
   }
 
-
-
-
 }
-
-

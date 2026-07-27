@@ -1,161 +1,157 @@
-
 import express from "express";
-import {pool} from "../db/pool.js"
-import authMiddleware from "../middleware/authMiddleware.js";
+import {pool} from "../db/pool.js";
+import {authMiddleware} from "../middleware/authMiddleware.js";
 import { retrieveRagContext } from "../services/ragSearchService.js";
 
-const router= express.Router();
+import { generateRagAnswer } from "../services/llmService.js";
+
+
+
+
+
+
+const router =
+  express.Router();
+
+
+router.use(
+  authMiddleware
+);
+
+
 
 router.use(authMiddleware);
 
-router.post("/search")
 
 
+router.post(
+  "/search",
+
+  async (
+    req,
+    res,
+    next
+  ) => {
+    try {
+      const {
+        question,
+
+        documentId
+      } = req.body;
 
 
-// import express from "express";
+      if (
+        typeof question !==
+          "string" ||
 
-// import {
-//   pool
-// } from "../db/pool.js";
+        !question.trim()
+      ) {
+        return res
+          .status(400)
 
-// import {
-//   authMiddleware
-// } from "../middleware/authMiddleware.js";
-
-// import {
-//   retrieveRagContext
-// } from "../services/ragSearchService.js";
-
-
-// const router =
-//   express.Router();
+          .json({
+            error:
+              "Question is required"
+          });
+      }
 
 
-// router.use(
-//   authMiddleware
-// );
+      if (
+        question.length >
+        10_000
+      ) {
+        return res
+          .status(400)
+
+          .json({
+            error:
+              "Question is too long"
+          });
+      }
 
 
-// router.post(
-//   "/search",
-
-//   async (
-//     req,
-//     res,
-//     next
-//   ) => {
-//     try {
-//       const {
-//         question,
-
-//         documentId
-//       } = req.body;
+      const documentIds = [];
 
 
-//       if (
-//         typeof question !==
-//           "string" ||
+      if (documentId) {
+        const documentResult =
+          await pool.query(
+            `
+            SELECT id
 
-//         !question.trim()
-//       ) {
-//         return res
-//           .status(400)
+            FROM documents
 
-//           .json({
-//             error:
-//               "Question is required"
-//           });
-//       }
+            WHERE id = $1
 
+              AND user_id = $2
 
-//       if (
-//         question.length >
-//         10_000
-//       ) {
-//         return res
-//           .status(400)
+              AND status != 'deleted'
+            `,
 
-//           .json({
-//             error:
-//               "Question is too long"
-//           });
-//       }
+            [
+              documentId,
+
+              req.user.id
+            ]
+          );
 
 
-//       const documentIds = [];
+        if (
+          documentResult
+            .rowCount === 0
+        ) {
+          return res
+            .status(404)
+
+            .json({
+              error:
+                "Document not found"
+            });
+        }
 
 
-//       if (documentId) {
-//         const documentResult =
-//           await pool.query(
-//             `
-//             SELECT id
-
-//             FROM documents
-
-//             WHERE id = $1
-
-//               AND user_id = $2
-
-//               AND status != 'deleted'
-//             `,
-
-//             [
-//               documentId,
-
-//               req.user.id
-//             ]
-//           );
+        documentIds.push(
+          String(documentId)
+        );
+      }
 
 
-//         if (
-//           documentResult
-//             .rowCount === 0
-//         ) {
-//           return res
-//             .status(404)
+      const result =
+        await retrieveRagContext({
+          question:
+            question.trim(),
 
-//             .json({
-//               error:
-//                 "Document not found"
-//             });
-//         }
+          userId:
+            String(
+              req.user.id
+            ),
 
-
-//         documentIds.push(
-//           String(documentId)
-//         );
-//       }
+          documentIds
+        });
 
 
-//       const result =
-//         await retrieveRagContext({
-//           question:
-//             question.trim(),
-
-//           userId:
-//             String(
-//               req.user.id
-//             ),
-
-//           documentIds
-//         });
+        const ll_answer =  await generateRagAnswer({
+            question: question.trim(),
+            context: result.context
+        })
 
 
-//       res
-//         .status(200)
+      res
+        .status(200)
 
-//         .json(result);
+        .json({
+            answer: ll_answer,
+            result: result
+        });
 
-//     } catch (error) {
-//       next(error);
-//     }
-//   }
-// );
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 
-// export default router;
+export default router;
 
 
 

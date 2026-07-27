@@ -1,0 +1,100 @@
+services:
+  init-permissions:
+    image: alpine:3.20
+    user: "0:0"
+    environment:
+      APP_UID: ${APP_UID:-1000}
+      APP_GID: ${APP_GID:-1000}
+    volumes:
+      - type: bind
+        source: ${DOCUMIND_OUTPUT_ROOT_HOST:-./api-output}
+        target: /data/output
+      - type: volume
+        source: huggingface-cache
+        target: /models/huggingface
+    command:
+      - /bin/sh
+      - -ec
+      - |
+        echo "Preparing writable DocuMind directories..."
+
+        mkdir -p \
+          /data/output \
+          /data/output/.jobs \
+          /models/huggingface \
+          /models/huggingface/hub \
+          /models/huggingface/sentence-transformers
+
+        chown -R \
+          "$${APP_UID}:$${APP_GID}" \
+          /data/output \
+          /models/huggingface
+
+        chmod -R \
+          u+rwX,go+rX \
+          /data/output \
+          /models/huggingface
+
+        echo "Writable directory initialization completed."
+    restart: "no"
+
+  indexer-api:
+    image: ${DOCUMIND_INDEXER_IMAGE:-documind-indexer-api:4.1.0}
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PYTHON_VERSION: ${PYTHON_VERSION:-3.12}
+        APP_UID: ${APP_UID:-1000}
+        APP_GID: ${APP_GID:-1000}
+        TORCH_INDEX_URL: ${TORCH_INDEX_URL:-}
+    env_file:
+      - .env
+    environment:
+      # Container paths stay fixed. Host roots are configured in .env.
+      INDEXER_INPUT_ROOT: /data/input
+      INDEXER_OUTPUT_ROOT: /data/output
+      JOB_STATE_DIRECTORY: .jobs
+
+      # A Docker-managed named volume avoids host UID/GID problems for models.
+      EMBEDDING_CACHE_FOLDER: /models/huggingface
+      HF_HOME: /models/huggingface
+      HF_HUB_CACHE: /models/huggingface/hub
+      HUGGINGFACE_HUB_CACHE: /models/huggingface/hub
+      SENTENCE_TRANSFORMERS_HOME: /models/huggingface/sentence-transformers
+      TOKENIZERS_PARALLELISM: "false"
+    user: "${APP_UID:-1000}:${APP_GID:-1000}"
+    depends_on:
+      init-permissions:
+        condition: service_completed_successfully
+    expose:
+      - "8000"
+    volumes:
+      - type: bind
+        source: ${DOCUMIND_INPUT_ROOT_HOST:-./examples}
+        target: /data/input
+        read_only: true
+      - type: bind
+        source: ${DOCUMIND_OUTPUT_ROOT_HOST:-./api-output}
+        target: /data/output
+      - type: volume
+        source: huggingface-cache
+        target: /models/huggingface
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import urllib.request;
+          urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=5).read()
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  huggingface-cache:
+    name: ${HF_CACHE_VOLUME_NAME:-documind-huggingface-cache}

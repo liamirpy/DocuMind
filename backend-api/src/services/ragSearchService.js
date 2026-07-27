@@ -4,10 +4,10 @@ import { embedQuestion } from "./embeddingService.js";
 
 
 
-process.env.OPENSEARCH_NODE="https://localhost:9200"
-process.env.OPENSEARCH_USERNAME="admin"
-process.env.OPENSEARCH_PASSWORD="DOCUMIND_opensearch_password_2026"
-process.env.OPENSEARCH_TLS_REJECT_UNAUTHORIZED = "false";
+// process.env.OPENSEARCH_NODE="https://localhost:9200"
+// process.env.OPENSEARCH_USERNAME="admin"
+// process.env.OPENSEARCH_PASSWORD="DOCUMIND_opensearch_password_2026"
+// process.env.OPENSEARCH_TLS_REJECT_UNAUTHORIZED = "false";
 
 const { OPENSEARCH_INDEX, opensearchClient }= await import( "../config/opensearchClient.js");
 
@@ -715,7 +715,7 @@ export async function retrieveRagContext({
 // combine lexical and vector and ranking 
 
 
-try {
+// try {
 
 //     const textSearch = await lexialSearch({
 //         question: "What is Residual Attention?",
@@ -770,42 +770,42 @@ try {
 //   });
 
 
-const finalRAG= await retrieveRagContext({
-    question:"Tell me about the performance of this model?",
-    userId: "user_123",
-    documentIds: ["doc_456"],
-    candidateK:10 ,
+// const finalRAG= await retrieveRagContext({
+//     question:"Tell me about the performance of this model?",
+//     userId: "user_123",
+//     documentIds: ["doc_456"],
+//     candidateK:10 ,
 
-    topK:2,
-    })
-
-
-// console.dir(finalbag, {
-//     depth: null,
-//     colors: true,
-// });
-
-const jsonRAG=JSON.stringify(finalRAG,null,2)
-// console.log(typeof jsonRAG)
-// console.log(finalRAG.context)
-
-const final_context= finalRAG.context;
-console.log(final_context)
-
-const LLMresponse=await generateRagAnswer({
-    question: "Tell me about the performance of this model?",
-    context: final_context
-})
-
-console.log(JSON.stringify(LLMresponse,null,2))
-
-// const LLMresponse= await
+//     topK:2,
+//     })
 
 
+// // console.dir(finalbag, {
+// //     depth: null,
+// //     colors: true,
+// // });
 
-}catch (error) {
-  console.error("Search failed:", error);
-}
+// const jsonRAG=JSON.stringify(finalRAG,null,2)
+// // console.log(typeof jsonRAG)
+// // console.log(finalRAG.context)
+
+// const final_context= finalRAG.context;
+// console.log(final_context)
+
+// const LLMresponse=await generateRagAnswer({
+//     question: "Tell me about the performance of this model?",
+//     context: final_context
+// })
+
+// console.log(JSON.stringify(LLMresponse,null,2))
+
+// // const LLMresponse= await
+
+
+
+// }catch (error) {
+//   console.error("Search failed:", error);
+// }
 
 
 

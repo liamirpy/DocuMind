@@ -110,12 +110,16 @@ const indexingMaximumStatusErrors =
  * Set to /host when the indexer runs inside Docker and
  * UPLOAD_DIR is mounted there.
  */
-const indexingMountRoot =
-    process.env.INDEXING_MOUNT_ROOT?.trim()
-        ? normalizeMountRoot(
-            process.env.INDEXING_MOUNT_ROOT
-        )
-        : null;
+
+const indexingInputMountRoot = normalizeMountRoot(
+    process.env.INDEXING_INPUT_MOUNT_ROOT ||
+    '/data/users'
+);
+
+const indexingOutputMountRoot = normalizeMountRoot(
+    process.env.INDEXING_OUTPUT_MOUNT_ROOT ||
+    '/data/users'
+);
 
 /*
  * OpenSearch ingestion service configuration.
@@ -177,7 +181,7 @@ console.log(
 );
 console.log(
     'INDEXING_MOUNT_ROOT:',
-    indexingMountRoot ||
+    indexingInputMountRoot ||
     'same host filesystem'
 );
 console.log('INGEST_URL:', ingestUrl);
@@ -395,29 +399,18 @@ function getProcessorPath(localPath) {
  * When INDEXING_MOUNT_ROOT is empty, the indexer receives
  * the real absolute host path.
  */
-function getIndexerPath(localPath) {
-    const absoluteLocalPath =
-        path.resolve(localPath);
+function getIndexerPath(localPath, mountRoot) {
+    const absoluteLocalPath = path.resolve(localPath);
 
-    if (
-        !isPathInside(
-            uploadDir,
-            absoluteLocalPath
-        )
-    ) {
+    if (!isPathInside(uploadDir, absoluteLocalPath)) {
         throw new Error(
-            `Indexer path is outside UPLOAD_DIR: ` +
-            absoluteLocalPath
+            `Indexer path is outside UPLOAD_DIR: ${absoluteLocalPath}`
         );
-    }
-
-    if (!indexingMountRoot) {
-        return absoluteLocalPath;
     }
 
     return convertToMountedPath(
         absoluteLocalPath,
-        indexingMountRoot
+        mountRoot
     );
 }
 
@@ -1290,12 +1283,14 @@ const worker = new Worker(
          */
         const indexingInputDirectory =
             getIndexerPath(
-                localPaperMindDirectory
+                localPaperMindDirectory,
+                indexingInputMountRoot
             );
 
         const indexingOutputDirectory =
             getIndexerPath(
-                localIndexerDirectory
+                localIndexerDirectory,
+                indexingOutputMountRoot
             );
 
         console.log(
