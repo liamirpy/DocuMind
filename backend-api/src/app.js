@@ -6,6 +6,7 @@ import authRoutes from "./routes/authRoutes.js"
 import folderRoutes from "./routes/folderRoutes.js";
 import documentRoutes from "./routes/documentRoutes.js";
 import ragRoutes from "./routes/ragRoutes.js"
+import conversationRoutes from "./routes/conversationRoutes.js";
 
 const app = express();
 
@@ -33,6 +34,8 @@ app.use("/api/folders", folderRoutes);
 app.use("/api/documents", documentRoutes);
 
 app.use("/api/rag", ragRoutes);
+app.use("/api/conversations", conversationRoutes);
+
 
 app.use(errorMiddleware);
 

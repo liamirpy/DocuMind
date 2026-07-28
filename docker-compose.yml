@@ -102,7 +102,7 @@ services:
       redis:
         condition: service_healthy
 
-      extractor-load-balancer:
+      agent-load-balancer:
         condition: service_healthy
 
       # opensearch:
@@ -150,7 +150,7 @@ services:
       agent-api:
         condition: service_healthy
 
-      indexer-api:
+      agent-load-balancer:
         condition: service_healthy
 
       # opensearch:
@@ -203,7 +203,7 @@ services:
   # ---------------------------------------------------
   # PaperMind extractor load balancer
   # ---------------------------------------------------
-  extractor-load-balancer:
+  agent-load-balancer:
     image: nginx:alpine
     restart: unless-stopped
 
@@ -212,12 +212,12 @@ services:
 
     volumes:
       - type: bind
-        source: ./nginx/extractor-load-balancer.conf
+        source: ./nginx/pdfMind-agent-load-balancer.conf
         target: /etc/nginx/nginx.conf
         read_only: true
 
     depends_on:
-      extractor-api:
+      agent-api:
         condition: service_started
 
     healthcheck:
@@ -237,6 +237,89 @@ services:
       - application_network
 
 
+
+  
+
+  # ---------------------------------------------------
+  # Indexer Nginx load balancer
+  # ---------------------------------------------------
+  indexer-load-balancer:
+    image: nginx:alpine
+    restart: unless-stopped
+
+    expose:
+      - "8080"
+
+    volumes:
+      - type: bind
+        source: ./nginx/indexer-load-balancer.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+    depends_on:
+      indexer-api:
+        condition: service_started
+
+    healthcheck:
+      # This passes through Nginx to the indexer backend,
+      # so it checks both Nginx and at least one indexer.
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O /dev/null
+          http://127.0.0.1:8080/health/ready
+          || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+    networks:
+      - default
+      
+
+  # ---------------------------------------------------
+  # Ingestor Nginx load balancer
+  # ---------------------------------------------------
+  ingestor-load-balancer:
+    image: nginx:alpine
+    restart: unless-stopped
+
+    expose:
+      - "8080"
+
+    volumes:
+      - type: bind
+        source: ./nginx/ingestor-load-balancer.conf
+        target: /etc/nginx/nginx.conf
+        read_only: true
+
+    depends_on:
+      ingestor-api:
+        condition: service_started
+
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          wget -q -O /dev/null
+          http://127.0.0.1:8080/health/ready
+          || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 20s
+
+    networks:
+      - default
+
+
+
+
+
+
+
+
 volumes:
   backend_node_modules:
   redis_data:
@@ -246,3 +329,7 @@ networks:
   default:
   public_network:
   application_network:
+
+
+
+

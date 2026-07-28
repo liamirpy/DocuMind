@@ -139,7 +139,7 @@ services:
       MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-100}
       MAX_CONCURRENCY: ${MAX_CONCURRENCY:-1}
 
-      TOOLS_BASE_URL: http://extractor-load-balancer:8080
+      TOOLS_BASE_URL: http://extractor-api:8000
       TOOLS_TIMEOUT_SECONDS: ${TOOLS_TIMEOUT_SECONDS:-1800}
       TOOLS_VERIFY_TLS: "false"
 
