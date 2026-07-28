@@ -46,10 +46,11 @@ router.post(
     next
   ) => {
     try {
-      const {
-        question,
-        documentId,
-        conversationId
+     const {
+          question,
+          documentId,
+          folderId,
+          conversationId
       } = req.body;
 
 
@@ -62,6 +63,30 @@ router.post(
             error: "conversationId must be a string"
           });
         }
+      if (
+              documentId != null &&
+              typeof documentId !== "string"
+          ) {
+              return res.status(400).json({
+                  error: "documentId must be a string"
+              });
+          }
+
+          if (
+              folderId != null &&
+              typeof folderId !== "string"
+          ) {
+              return res.status(400).json({
+                  error: "folderId must be a string"
+              });
+          }
+
+          if (documentId && folderId) {
+              return res.status(400).json({
+                  error:
+                      "Choose either documentId or folderId, not both"
+              });
+          }
 
       const normalizedQuestion = question.trim();
 
@@ -116,50 +141,83 @@ router.post(
       }
 
 
-      const documentIds = [];
 
 
-      if (documentId) {
-        const documentResult =
-          await pool.query(
-            `
-            SELECT id
+      let documentIds = [];
 
-            FROM documents
+      if (folderId) {
+        const folderResult = await pool.query(
+          `
+          SELECT id
+          FROM folders
+          WHERE id = $1
+            AND user_id = $2
+            AND deleted_at IS NULL
+          `,
+          [folderId, req.user.id],
+        );
 
-            WHERE id = $1
-
-              AND user_id = $2
-
-              AND status != 'deleted'
-            `,
-
-            [
-              documentId,
-
-              req.user.id
-            ]
-          );
-
-
-        if (
-          documentResult
-            .rowCount === 0
-        ) {
-          return res
-            .status(404)
-
-            .json({
-              error:
-                "Document not found"
-            });
+        if (folderResult.rowCount === 0) {
+          return res.status(404).json({
+            error: "Folder not found",
+          });
         }
 
+        const folderDocumentsResult = await pool.query(
+          `
+          SELECT d.id
+          FROM folder_documents fd
 
-        documentIds.push(
-          String(documentId)
+          JOIN documents d
+            ON d.id = fd.document_id
+          AND d.user_id = fd.user_id
+
+          WHERE fd.folder_id = $1
+            AND fd.user_id = $2
+            AND fd.deleted_at IS NULL
+            AND d.deleted_at IS NULL
+            AND d.status <> 'deleted'
+
+          ORDER BY d.uploaded_at ASC
+          `,
+          [folderId, req.user.id],
         );
+
+        if (folderDocumentsResult.rowCount === 0) {
+          return res.status(404).json({
+            error: "This folder contains no documents",
+          });
+        }
+
+        documentIds = folderDocumentsResult.rows.map(
+          (row) => String(row.id),
+        );
+      } else if (documentId) {
+        const documentResult = await pool.query(
+          `
+          SELECT id
+          FROM documents
+          WHERE id = $1
+            AND user_id = $2
+            AND deleted_at IS NULL
+            AND status <> 'deleted'
+          `,
+          [documentId, req.user.id],
+        );
+
+        if (documentResult.rowCount === 0) {
+          return res.status(404).json({
+            error: "Document not found",
+          });
+        }
+
+        documentIds = [
+          String(documentResult.rows[0].id),
+        ];
       }
+
+
+
 
 
       const result = await retrieveRagContext({

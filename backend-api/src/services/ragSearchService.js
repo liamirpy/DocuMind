@@ -501,17 +501,17 @@ export async function retrieveRagContext({
     documentIds=[],
 
     candidateK = Number(
-        process.env.RAG_CANDIDATE_K || 30
+        process.env.RAG_CANDIDATE_K || 90
     ),
 
     topK= Number(
         process.env.RAG_TOP_K ||
-        8
+        16
     ),
 
     maxContexChars = Number(
         process.env.RAG_MAX_CONTEXT_CHARS ||
-        18_000
+        30_000
     )
 }){
 
