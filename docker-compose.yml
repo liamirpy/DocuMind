@@ -2,7 +2,7 @@ name: documind
 
 include:
   # ---------------------------------------------------
-  # PostgreSQL stack
+  # PostgreSQL 
   # ---------------------------------------------------
   - path: ./postgreSQL/docker-compose_ngnix.yml
     env_file: ./postgreSQL/.env
@@ -15,7 +15,7 @@ include:
 
 
   # ---------------------------------------------------
-  # PaperMind GPU stack
+  # PaperMind GPU 
   # ---------------------------------------------------
   - path:
       - ./paperMind/compose.nginx.yaml
