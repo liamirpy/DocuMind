@@ -8,11 +8,11 @@ on:
       - develop
     paths:
       - "ingester/**"
-      - ".github/workflows/ingester.yml"
+      - ".github/workflows/ingester-ci.yml"
   pull_request:
     paths:
       - "ingester/**"
-      - ".github/workflows/ingester.yml"
+      - ".github/workflows/ingester-ci.yml"
   workflow_dispatch:
 
 permissions:
@@ -137,6 +137,9 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Prepare Compose environment
+        run: cp .env.example .env
 
       - name: Validate standard Compose file
         run: docker compose -f compose.yml config --quiet
