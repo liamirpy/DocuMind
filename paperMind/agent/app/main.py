@@ -80,9 +80,7 @@ def _build_process_response(result: dict[str, Any]) -> ProcessResponse:
     zip_path = result["zip_path"]
     quality = canonical.get("quality") or {}
     warnings = canonical.get("warnings") or []
-    response_status = (
-        "completed" if quality.get("status") == "green" else "completed_with_warnings"
-    )
+    response_status = "completed" if quality.get("status") == "green" else "completed_with_warnings"
 
     is_default_output_root = output_root == settings.output_dir.expanduser().resolve()
     package_url = (

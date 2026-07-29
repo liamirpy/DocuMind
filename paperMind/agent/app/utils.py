@@ -5,8 +5,9 @@ import re
 import shutil
 import tempfile
 import unicodedata
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, BinaryIO, Iterable
+from typing import Any, BinaryIO
 
 from fastapi import UploadFile
 
@@ -65,9 +66,7 @@ def parse_output_directories(value: str) -> tuple[Path, ...]:
 
     normalized = value.replace("\n", ",")
     return tuple(
-        Path(item.strip()).expanduser().resolve()
-        for item in normalized.split(",")
-        if item.strip()
+        Path(item.strip()).expanduser().resolve() for item in normalized.split(",") if item.strip()
     )
 
 
@@ -133,14 +132,11 @@ def resolve_input_pdf(
 
     roots = tuple(Path(root).expanduser().resolve() for root in allowed_roots)
     if not roots:
-        raise ValueError(
-            "Path-based input is not configured. Set ALLOWED_INPUT_DIRECTORIES."
-        )
+        raise ValueError("Path-based input is not configured. Set ALLOWED_INPUT_DIRECTORIES.")
 
     resolved_directory = directory.resolve()
     if not any(
-        resolved_directory == root or resolved_directory.is_relative_to(root)
-        for root in roots
+        resolved_directory == root or resolved_directory.is_relative_to(root) for root in roots
     ):
         raise ValueError(
             "Input directory is not allowed. Mount it into the container and add its "
