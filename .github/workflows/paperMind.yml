@@ -2,6 +2,8 @@ name: PaperMind CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - "paperMind/**"
       - ".github/workflows/papermind.yml"
