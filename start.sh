@@ -470,8 +470,8 @@ bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
 
 
 
-# chmod +x "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
-# bash "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
+chmod +x "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
+bash "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
 
 
 
