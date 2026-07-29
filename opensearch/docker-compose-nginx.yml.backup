@@ -67,7 +67,3 @@ services:
       - backend_network
 
     restart: unless-stopped
-
-networks:
-  backend_network:
-    external: true

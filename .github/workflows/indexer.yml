@@ -145,7 +145,7 @@ jobs:
       - name: Validate Docker Compose files
         run: |
           docker compose -f docker-compose.yml config --quiet
-          docker compose -f docker-compose.nginx.yml config --quiet
+          docker compose -f docker-compose-nginx.yml config --quiet
 
       - name: Build Indexer image
         run: |

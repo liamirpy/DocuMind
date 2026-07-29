@@ -249,11 +249,11 @@ bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
 
 # cd /srv/DocuMind
 
-# sudo docker compose exec -T opensearch \
-#   curl \
-#     --insecure \
-#     --user 'admin:DOCUMIND_opensearch_password_2026' \
-#     'https://127.0.0.1:9200/documind-chunks-v1/_count?pretty'
+sudo docker compose exec -T opensearch \
+  curl \
+    --insecure \
+    --user 'admin:DOCUMIND_opensearch_password_2026' \
+    'https://127.0.0.1:9200/documind-chunks-v1/_count?pretty'
 
 
 

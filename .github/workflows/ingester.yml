@@ -145,7 +145,7 @@ jobs:
         run: docker compose -f compose.yml config --quiet
 
       - name: Validate Nginx Compose file
-        run: docker compose -f compose-nginx.yml config --quiet
+        run: docker compose -f compose-nginx-ci.yml config --quiet
 
   docker:
     name: Docker build and API smoke test

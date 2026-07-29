@@ -38,6 +38,10 @@ services:
         echo "Writable directory initialization completed."
     restart: "no"
 
+
+    networks:
+      - backend_network
+
   indexer-api:
     image: ${DOCUMIND_INDEXER_IMAGE:-documind-indexer-api:4.1.0}
     build:
@@ -94,7 +98,13 @@ services:
       timeout: 10s
       retries: 10
       start_period: 60s
+    
+    networks:
+      - backend_network
 
 volumes:
   huggingface-cache:
     name: ${HF_CACHE_VOLUME_NAME:-documind-huggingface-cache}
+
+networks:
+  backend_network:

@@ -59,6 +59,7 @@ echo "Created: $TARGET_DIR/.env"
 
 
 
+cd "$ROOT_DIR"
 
 # ---------------------------------------------------
 # Update Volume directory for opensearch 
@@ -180,11 +181,14 @@ echo "Saved HOST_ACCESS to $ENV_FILE for paperMind"
 # # =========================================================
 # # Update Indexer .env file  
 # # =========================================================
-
 ENV_FILE="$ROOT_DIR/indexer/.env"
 
 NEW_INPUT_ROOT="$ROOT_DIR/data/users"
 NEW_OUTPUT_ROOT="$ROOT_DIR/data/users"
+
+# Define the API key here.
+# It will be written to the .env file without quotation marks.
+API_KEY_VALUE=sk_live_T0xqJiQotn-U7_rIpXMKIpEe48L6XVJz5Ovhw8-WZJfYrxgI
 
 # =================================
 # Validation
@@ -205,32 +209,52 @@ if [[ "$NEW_INPUT_ROOT" != /* || "$NEW_OUTPUT_ROOT" != /* ]]; then
     exit 1
 fi
 
-if ! grep -q '^DOCUMIND_INPUT_ROOT_HOST=' "$ENV_FILE"; then
-    echo "Error: DOCUMIND_INPUT_ROOT_HOST does not exist in $ENV_FILE" >&2
+if [[ -z "$API_KEY_VALUE" ]]; then
+    echo "Error: API_KEY_VALUE cannot be empty." >&2
     exit 1
 fi
 
-if ! grep -q '^DOCUMIND_OUTPUT_ROOT_HOST=' "$ENV_FILE"; then
-    echo "Error: DOCUMIND_OUTPUT_ROOT_HOST does not exist in $ENV_FILE" >&2
+if [[ "$API_KEY_VALUE" == *$'\n'* || "$API_KEY_VALUE" == *$'\r'* ]]; then
+    echo "Error: API_KEY_VALUE cannot contain line breaks." >&2
     exit 1
 fi
 
+required_variables=(
+    DOCUMIND_INPUT_ROOT_HOST
+    DOCUMIND_OUTPUT_ROOT_HOST
+    API_KEY
+)
+
+for variable_name in "${required_variables[@]}"; do
+    if ! grep -q "^${variable_name}=" "$ENV_FILE"; then
+        echo "Error: ${variable_name} does not exist in $ENV_FILE" >&2
+        exit 1
+    fi
+done
 
 # ======================================
 # Back up and update the existing lines
-# =====================================
+# ======================================
 
 BACKUP_FILE="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
+TEMP_FILE="$(mktemp "${ENV_FILE}.tmp.XXXXXX")"
+
 cp "$ENV_FILE" "$BACKUP_FILE"
 
-TEMP_FILE="$(mktemp "${ENV_FILE}.tmp.XXXXXX")"
+cleanup() {
+    rm -f "$TEMP_FILE"
+}
+
+trap cleanup EXIT
 
 awk \
     -v input_root="$NEW_INPUT_ROOT" \
-    -v output_root="$NEW_OUTPUT_ROOT" '
+    -v output_root="$NEW_OUTPUT_ROOT" \
+    -v api_key="$API_KEY_VALUE" '
 BEGIN {
     input_updated = 0
     output_updated = 0
+    api_key_updated = 0
 }
 
 /^DOCUMIND_INPUT_ROOT_HOST=/ {
@@ -245,27 +269,47 @@ BEGIN {
     next
 }
 
+/^API_KEY=/ {
+    print "API_KEY=" api_key
+    api_key_updated = 1
+    next
+}
+
 {
     print
 }
 
 END {
-    if (!input_updated || !output_updated) {
+    if (!input_updated) {
+        print "Error: DOCUMIND_INPUT_ROOT_HOST was not updated." > "/dev/stderr"
+        exit 1
+    }
+
+    if (!output_updated) {
+        print "Error: DOCUMIND_OUTPUT_ROOT_HOST was not updated." > "/dev/stderr"
+        exit 1
+    }
+
+    if (!api_key_updated) {
+        print "Error: API_KEY was not updated." > "/dev/stderr"
         exit 1
     }
 }
 ' "$ENV_FILE" > "$TEMP_FILE"
 
+# Preserve the original file permissions.
+chmod --reference="$ENV_FILE" "$TEMP_FILE"
+
 mv "$TEMP_FILE" "$ENV_FILE"
+trap - EXIT
 
 echo "Updated existing variables successfully:"
 echo "  DOCUMIND_INPUT_ROOT_HOST=$NEW_INPUT_ROOT"
 echo "  DOCUMIND_OUTPUT_ROOT_HOST=$NEW_OUTPUT_ROOT"
+echo "  API_KEY configured"
 echo
 echo "Backup created at:"
 echo "  $BACKUP_FILE"
-
-
 
 
 
@@ -288,7 +332,7 @@ ENV_FILE="$ROOT_DIR/ingester/.env"
 # Define the values here.
 # Because these assignments are unquoted, use values without spaces or
 # shell-special characters.
-INGESTOR_API_KEY_VALUE=hello
+INGESTOR_API_KEY_VALUE=sk_live_T0xqJiQotn-U7_rIpXMKIpEe48L6XVJz5Ovhw8-WZJfYrxgI
 OPENSEARCH_USERNAME_VALUE=admin
 OPENSEARCH_PASSWORD_VALUE=DOCUMIND_opensearch_password_2026
 
@@ -388,3 +432,51 @@ trap - EXIT
 echo "Ingestor configuration updated successfully."
 echo "Environment file: $ENV_FILE"
 echo "Backup file:      $BACKUP_FILE"
+
+
+
+# ---------------------------------------------------
+# Define docker 
+# ---------------------------------------------------
+
+
+
+if docker info >/dev/null 2>&1; then
+  DOCKER=(docker)
+else
+  DOCKER=(sudo docker)
+fi
+
+echo "Validating Compose configuration..."
+
+"${DOCKER[@]}" compose config --quiet
+
+
+
+
+
+
+
+"${DOCKER[@]}" compose up -d 
+
+
+
+
+
+chmod +x "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
+bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
+
+
+
+
+
+# chmod +x "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
+# bash "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
+
+
+
+
+
+
+# chmod +x "./opensearch/apply_schema_nginx.sh"
+# bash "./opensearch/apply_schema_nginx.sh"

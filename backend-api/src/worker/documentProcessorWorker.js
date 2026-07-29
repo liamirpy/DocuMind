@@ -131,6 +131,17 @@ const ingestUrl = (
     'http://127.0.0.1:8080/ingest'
 ).replace(/\/+$/, '');
 
+
+const ingestApiKey =
+    process.env.INGEST_API_KEY?.trim();
+
+if (!ingestApiKey) {
+    throw new Error(
+        'INGEST_API_KEY environment variable is required'
+    );
+}
+
+
 const ingestTimeout = parsePositiveNumber(
     process.env.INGEST_TIMEOUT_MS,
     600000
@@ -1105,6 +1116,8 @@ async function ingestChunks({
             {
                 headers: {
                     ...form.getHeaders(),
+                    'X-API-Key': ingestApiKey,
+
                     Accept:
                         'application/json'
                 },

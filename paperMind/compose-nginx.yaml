@@ -25,6 +25,10 @@ services:
       retries: 30
       start_period: 180s
 
+    networks:
+      - papermind_network
+      - backend_network
+
   extractor-api:
     image: ${EXTRACTOR_CPU_IMAGE:-pdf-analyser-extractor:0.3.0-cpu}
     build:
@@ -96,6 +100,10 @@ services:
       retries: 10
       start_period: 900s
 
+    networks:
+      - papermind_network
+      - backend_network
+
   ollama:
     image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
     volumes:
@@ -110,6 +118,10 @@ services:
       retries: 30
       start_period: 20s
 
+    networks:
+      - papermind_network
+      - backend_network
+
   ollama-model-init:
     image: ${OLLAMA_IMAGE:-ollama/ollama:latest}
     depends_on:
@@ -120,6 +132,10 @@ services:
     entrypoint: ["ollama"]
     command: ["pull", "${OLLAMA_MODEL:-qwen2.5vl:3b}"]
     restart: "no"
+  
+    networks:
+      - papermind_network
+      - backend_network
 
   agent-api:
     image: ${AGENT_IMAGE:-pdf-analyser-agent:0.3.0}
@@ -204,8 +220,16 @@ services:
       timeout: 25s
       retries: 10
       start_period: 30s
+    networks:
+      - papermind_network
+      - backend_network
 
 volumes:
   docling-model-cache:
   extraction-assets:
   ollama-models:
+
+
+networks:
+  papermind_network:
+  backend_network:
