@@ -52,7 +52,7 @@ jobs:
       - name: Validate Docker Compose files
         run: |
           docker compose -f opensearch/docker-compose.yml config --quiet
-          docker compose -f opensearch/docker-compose.nginx.yml config --quiet
+          docker compose -f opensearch/docker-compose-nginx.yml config --quiet
 
   integration:
     name: OpenSearch smoke test
@@ -146,3 +146,8 @@ jobs:
         run: |
           docker rm --force "${OPENSEARCH_CONTAINER}" 2>/dev/null || true
           sudo rm -rf opensearch/data
+
+
+
+
+

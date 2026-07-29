@@ -1,6 +1,3 @@
-networks:
-  documind: {}
-
 services:
   postgres:
     image: postgres:16
@@ -26,7 +23,7 @@ services:
       retries: 20
 
     networks:
-      - documind
+      - backend_network
 
   pgbouncer:
     image: bitnami/pgbouncer:latest
@@ -47,4 +44,4 @@ services:
     expose:
       - "6432"
     networks:
-      - documind
+      - backend_network

@@ -7,6 +7,13 @@ include:
   - path: ./postgreSQL/docker-compose_ngnix.yml
     env_file: ./postgreSQL/.env
 
+ # ---------------------------------------------------
+  # OpenSearch
+  # ---------------------------------------------------
+  - path: ./opensearch/docker-compose.nginx.yml
+    project_directory: ./opensearch
+
+
   # ---------------------------------------------------
   # PaperMind GPU stack
   # ---------------------------------------------------
@@ -22,12 +29,6 @@ include:
   - path: ./indexer/docker-compose.nginx.yml
     project_directory: ./indexer
     env_file: ./indexer/.env
-
- # ---------------------------------------------------
-  # OpenSearch
-  # ---------------------------------------------------
-  - path: ./opensearch/docker-compose.nginx.yml
-    project_directory: ./opensearch
 
 
 
