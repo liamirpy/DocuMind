@@ -4,11 +4,11 @@ on:
   push:
     paths:
       - "paperMind/**"
-      - ".github/workflows/papermind-ci.yml"
+      - ".github/workflows/papermind.yml"
   pull_request:
     paths:
       - "paperMind/**"
-      - ".github/workflows/papermind-ci.yml"
+      - ".github/workflows/papermind.yml"
   workflow_dispatch:
 
 permissions:
