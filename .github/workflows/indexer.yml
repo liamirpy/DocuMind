@@ -1,0 +1,183 @@
+name: Indexer CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "indexer/**"
+      - ".github/workflows/indexer.yml"
+  pull_request:
+    paths:
+      - "indexer/**"
+      - ".github/workflows/indexer.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: indexer-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+    working-directory: indexer
+
+jobs:
+  quality:
+    name: Quality checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: indexer/requirements-dev.txt
+
+      - name: Install quality tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "ruff>=0.9,<1"
+
+      - name: Run Ruff lint checks
+        run: ruff check .
+
+      - name: Check Ruff formatting
+        run: ruff format --check .
+
+      - name: Compile Python sources
+        run: python -m compileall -q app examples tests
+
+      - name: Validate JSON files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(Path(".").rglob("*.json"))
+          for path in files:
+              with path.open(encoding="utf-8") as stream:
+                  json.load(stream)
+              print(f"valid: {path}")
+          PY
+
+      - name: Validate shell scripts
+        run: |
+          while IFS= read -r -d '' script; do
+            echo "checking ${script}"
+            sh -n "${script}"
+          done < <(find scripts -type f -name '*.sh' -print0)
+
+  tests:
+    name: Tests (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    env:
+      # The committed .env enables an API key for Docker. Unit/API tests are
+      # intentionally unauthenticated, so override it for the test process.
+      API_KEY: ""
+      TOKENIZERS_PARALLELISM: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: indexer/requirements-dev.txt
+
+      - name: Install project and test dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r requirements-dev.txt
+          python -m pip install --no-deps -e .
+
+      - name: Run unit and API tests
+        run: python -m pytest -q
+
+      - name: Run CLI smoke test
+        run: |
+          rm -rf .ci-output
+          documind-indexer chunk examples/sample_pdf_output \
+            --user-id ci-user \
+            --document-id ci-document \
+            --config examples/chunking_config.dev.json \
+            --output .ci-output/chunks.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path(".ci-output/chunks.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["counts"]["total"] > 0
+          assert payload["embedding"]["enabled"] is True
+          assert payload["embedding"]["dimensions"] == 32
+          print(f"CLI smoke output contains {payload['counts']['total']} chunks")
+          PY
+
+  containers:
+    name: Compose and Docker smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    needs: [quality, tests]
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate Docker Compose files
+        run: |
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f docker-compose.nginx.yml config --quiet
+
+      - name: Build Indexer image
+        run: |
+          docker build \
+            --tag documind-indexer-ci:${GITHUB_SHA} \
+            --build-arg PYTHON_VERSION=3.12 \
+            .
+
+      - name: Run containerised CLI smoke test
+        run: |
+          rm -rf docker-output-ci
+          mkdir -p docker-output-ci
+
+          docker run --rm \
+            --user "$(id -u):$(id -g)" \
+            --volume "${PWD}/examples/sample_pdf_output:/data/input:ro" \
+            --volume "${PWD}/docker-output-ci:/data/output" \
+            --volume "${PWD}/docker/chunking_config.smoke.json:/config/chunking_config.json:ro" \
+            documind-indexer-ci:${GITHUB_SHA} \
+            documind-indexer chunk /data/input \
+            --user-id ci-user \
+            --document-id ci-document \
+            --config /config/chunking_config.json \
+            --output /data/output/chunks.smoke.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          path = Path("docker-output-ci/chunks.smoke.json")
+          payload = json.loads(path.read_text(encoding="utf-8"))
+          assert payload["counts"]["total"] > 0
+          assert payload["embedding"]["dimensions"] == 32
+          print(f"Docker smoke output contains {payload['counts']['total']} chunks")
+          PY

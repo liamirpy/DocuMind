@@ -186,9 +186,9 @@ ENV_FILE="$ROOT_DIR/indexer/.env"
 NEW_INPUT_ROOT="$ROOT_DIR/data/users"
 NEW_OUTPUT_ROOT="$ROOT_DIR/data/users"
 
-# =========================================================
+# =================================
 # Validation
-# =========================================================
+# =================================
 
 if [[ ! -f "$ENV_FILE" ]]; then
     echo "Error: .env file not found: $ENV_FILE" >&2
@@ -216,9 +216,9 @@ if ! grep -q '^DOCUMIND_OUTPUT_ROOT_HOST=' "$ENV_FILE"; then
 fi
 
 
-# =========================================================
+# ======================================
 # Back up and update the existing lines
-# =========================================================
+# =====================================
 
 BACKUP_FILE="${ENV_FILE}.backup.$(date +%Y%m%d_%H%M%S)"
 cp "$ENV_FILE" "$BACKUP_FILE"
@@ -264,3 +264,12 @@ echo "  DOCUMIND_OUTPUT_ROOT_HOST=$NEW_OUTPUT_ROOT"
 echo
 echo "Backup created at:"
 echo "  $BACKUP_FILE"
+
+
+
+
+
+
+# # =========================================================
+# # Update Ingester .env file  
+# # =========================================================
