@@ -1,24 +1,17 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
+
+# ---------------------------------------------------
+# Creating a Directory for saving data  (current directory/data)
+# ---------------------------------------------------
+
 ROOT_DIR="$(
   cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
   pwd
 )"
-
 cd "$ROOT_DIR"
-
 DATA_DIR="$ROOT_DIR/data"
-
-
-
-
-
-
-
-# ---------------------------------------------------
-# Creating Data folder 
-# ---------------------------------------------------
 
 
 echo "Creating data folder..."
@@ -27,279 +20,137 @@ mkdir -p "$DATA_DIR"
 echo "Data folder: $DATA_DIR"
 
 
-
 # ---------------------------------------------------
-# Define docker 
-# ---------------------------------------------------
-
-
-
-if docker info >/dev/null 2>&1; then
-  DOCKER=(docker)
-else
-  DOCKER=(sudo docker)
-fi
-
-echo "Validating Compose configuration..."
-
-"${DOCKER[@]}" compose config --quiet
-
-
-
-
-
-# ---------------------------------------------------
-# Creating PostgreSQL file
+# Set up PostgreSQL .env file 
 # ---------------------------------------------------
 
-echo "Creating PosgreSQL data directory"
+#!/usr/bin/env bash
+
+
+echo "Creating postgreSQL folder..."
 
 mkdir -p "$DATA_DIR/postgreSQL"
-
-echo "Data folder: $DATA_DIR/postgreSQL"
-
-echo "Adding data diretory in PostgreSQL env file"
-
-ENV_FILE="$ROOT_DIR/postgreSQL/.env"
-touch "$ENV_FILE"
-
-# Remove an existing DATA_DIR entry, then add the current value.
-sed -i.bak '/^DATA_DIR=/d' "$ENV_FILE"
-printf 'DATA_DIR=%s\n' "$DATA_DIR/postgreSQL" >> "$ENV_FILE"
-rm -f "$ENV_FILE.bak"
-
-echo "Saved DATA_DIR to $ENV_FILE for PostgreSQL"
+echo "postgreSQL folder: $DATA_DIR/postgreSQL"
 
 
 
+# Change these paths as needed
+TARGET_DIR="postgreSQL"
 
 
-# ---------------------------------------------------
-# Creating users file 
-# ---------------------------------------------------
+cd "$ROOT_DIR/$TARGET_DIR"
 
-echo "Creating user data (uploding) directory"
+# Create or overwrite the .env file
+cat > .env <<EOF
+POSTGRES_USER=documind
+POSTGRES_PASSWORD=documind12345678
+POSTGRES_DB=documind_postgresql
 
-mkdir -p "$DATA_DIR/users"
 
-echo "Data folder: $DATA_DIR/users"
+PG_PORT=5433
+PGBOUNCER_PORT=6433
+DATA_DIR=$DATA_DIR/postgreSQL
+EOF
 
-echo "Adding data diretory in Node js env file"
+# Restrict access because the file contains a password
+chmod 600 .env
 
+echo "Created: $TARGET_DIR/.env"
 
 
 
 
 # ---------------------------------------------------
-# Build public Nginx
-# ---------------------------------------------------
-
-echo "Building Nginx..."
-
-# "${DOCKER[@]}" compose build public-nginx
-
-# "${DOCKER[@]}" compose up -d public-nginx
-
-
-
-# ---------------------------------------------------
-# Start PosgreSQL pgbouncer 
+# Update Volume directory for opensearch 
 # ---------------------------------------------------
 
 
+echo "Creating opensearch folder..."
 
-echo "Starting PostgreSQL/pgbouncer and public Nginx..."
-
-
-# "${DOCKER[@]}" compose up -d \
-#   postgres \
-#   pgbouncer
+mkdir -p "$DATA_DIR/opensearch"
+echo "opensearch folder: $DATA_DIR/opensearch"
 
 
+# =========================
+# Configuration
+# =========================
 
+COMPOSE_FILE="$ROOT_DIR/opensearch/docker-compose-nginx.yml"
 
-# # ---------------------------------------------------
-# # Start api and document worker 
-# # ---------------------------------------------------
+# Change this value to the directory where OpenSearch data should be saved
 
-uid="$(id -u)"
-gid="$(id -g)"
+NEW_PATH="$DATA_DIR/opensearch"
+echo $NEW_PATH
+OLD_PATH="../data/opensearch"
+CONTAINER_PATH="/usr/share/opensearch/data"
 
-update_ids() {
-  local env_file="$1"
+# =========================
+# Validation
+# =========================
 
-  touch "$env_file"
+if [[ ! -f "$COMPOSE_FILE" ]]; then
+    echo "Error: Compose file not found: $COMPOSE_FILE" >&2
+    exit 1
+fi
 
-  if grep -q '^HOST_UID=' "$env_file"; then
-    sed -i "s/^HOST_UID=.*/HOST_UID=$uid/" "$env_file"
-  else
-    echo "HOST_UID=$uid" >> "$env_file"
-  fi
+if [[ -z "$NEW_PATH" ]]; then
+    echo "Error: NEW_PATH cannot be empty." >&2
+    exit 1
+fi
 
-  if grep -q '^HOST_GID=' "$env_file"; then
-    sed -i "s/^HOST_GID=.*/HOST_GID=$gid/" "$env_file"
-  else
-    echo "HOST_GID=$gid" >> "$env_file"
-  fi
+if [[ "$NEW_PATH" != /* ]]; then
+    echo "Error: NEW_PATH must be an absolute path." >&2
+    exit 1
+fi
+
+# Remove a trailing slash
+NEW_PATH="${NEW_PATH%/}"
+
+if ! grep -Fq "${OLD_PATH}:${CONTAINER_PATH}" "$COMPOSE_FILE"; then
+    echo "Error: Could not find this volume mapping:"
+    echo "  ${OLD_PATH}:${CONTAINER_PATH}"
+    exit 1
+fi
+
+# =========================
+# Create directory
+# =========================
+
+mkdir -p "$NEW_PATH"
+
+# Set the permissions required by OpenSearch
+chown -R 1000:1000 "$NEW_PATH"
+chmod -R u+rwX "$NEW_PATH"
+
+# =========================
+# Update Compose file
+# =========================
+
+BACKUP_FILE="${COMPOSE_FILE}.backup"
+cp "$COMPOSE_FILE" "$BACKUP_FILE"
+
+awk \
+    -v old_path="$OLD_PATH" \
+    -v new_path="$NEW_PATH" \
+    -v container_path="$CONTAINER_PATH" '
+{
+    volume_mapping = old_path ":" container_path
+
+    if (index($0, volume_mapping) > 0) {
+        sub(old_path ":" container_path,
+            new_path ":" container_path)
+    }
+
+    print
 }
+' "$COMPOSE_FILE" > "${COMPOSE_FILE}.tmp"
 
-update_ids "$ROOT_DIR/.env"
-update_ids "$ROOT_DIR/paperMind/.env"
+mv "${COMPOSE_FILE}.tmp" "$COMPOSE_FILE"
 
+echo "OpenSearch configuration updated successfully."
+echo "Data directory: $NEW_PATH"
+echo "Compose file:   $COMPOSE_FILE"
+echo "Backup file:    $BACKUP_FILE"
 
 
 
-
-ENV_FILE="$ROOT_DIR/backend-api/.env"
-touch "$ENV_FILE"
-
-# Remove an existing DATA_DIR entry, then add the current value.
-sed -i.bak '/^UPLOAD_DIR=/d' "$ENV_FILE"
-printf 'UPLOAD_DIR=%s\n' "../data/users" >> "$ENV_FILE"
-rm -f "$ENV_FILE.bak"
-
-echo "Saved UPLOAD_DIR to $ENV_FILE for Node js"
-
-
-
-
-
-
-
-
-
-# echo "%%%%%%%%%%%%%%%%%%%%%%%"
-
-
-# "${DOCKER[@]}" compose up -d \
-#   api \
-
-
-# "${DOCKER[@]}" compose up -d \
-#   document-worker \
-
-
-
-
-
-
-
-
-# # ---------------------------------------------------
-# # Start paperMind (agent and other services inside) , we only put the extractor-api behind nginx
-# # ---------------------------------------------------
-
-
-echo "Adding data diretory in paperMind env file"
-
-ENV_FILE="$ROOT_DIR/paperMind/.env"
-touch "$ENV_FILE"
-
-# Remove an existing DATA_DIR entry, then add the current value.
-sed -i.bak '/^HOST_ACCESS_ROOT=/d' "$ENV_FILE"
-printf 'HOST_ACCESS_ROOT=%s\n' "$DATA_DIR" >> "$ENV_FILE"
-rm -f "$ENV_FILE.bak"
-
-echo "Saved HOST_ACCESS to $ENV_FILE for paperMind"
-
-
-
-# ---------------------------------------------------
-# Upload PostgreSQL schema 
-# ---------------------------------------------------
-
-
-
-##### for indexer define these too 
-
-#######
-
-# # Existing PDF-package outputs. This root is mounted read-only.
-# DOCUMIND_INPUT_ROOT_HOST=/srv/DocuMind/data
-
-# # The init service creates/fixes this writable output root automatically.
-# DOCUMIND_OUTPUT_ROOT_HOST=/srv/DocuMind/data
-
-
-
-
-
-
-
-"${DOCKER[@]}" compose up -d 
-
-
-
-
-
-chmod +x "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
-bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
-
-
-
-
-# OPENSEARCH_USERNAME='admin' \
-# OPENSEARCH_PASSWORD='Another_Strong_Password_2026!' \
-# /srv/DocuMind/opensearch/setup.sh
-
-
-
-
-
-
-# cd /srv/DocuMind
-
-# sudo docker compose exec -T opensearch \
-#   curl \
-#     --insecure \
-#     --user 'admin:DOCUMIND_opensearch_password_2026' \
-#     'https://127.0.0.1:9200/documind-chunks-v1/_count?pretty'
-
-
-
-
-
-
-# # "${DOCKER[@]}" compose up -d \
-# #   --build \
-# #   --scale extractor-api=3 \
-# #   grobid \
-# #   extractor-api \
-# #   extractor-load-balancer \
-# #   ollama \
-# #   ollama-model-init \
-# #   agent-api
-
-
-
-
-# # echo
-# # echo "Container status:"
-
-# # "${DOCKER[@]}" compose ps
-
-
-
-
-
-
-
-# # ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-# # ENV_FILE="$.env"
-
-# # uid="$(id -u)"
-# # gid="$(id -g)"
-
-# # touch "$ENV_FILE"
-
-# # if grep -q '^HOST_UID=' "$ENV_FILE"; then
-# #   sed -i "s/^HOST_UID=.*/HOST_UID=$uid/" "$ENV_FILE"
-# # else
-# #   echo "HOST_UID=$uid" >> "$ENV_FILE"
-# # fi
-
-# # if grep -q '^HOST_GID=' "$ENV_FILE"; then
-# #   sed -i "s/^HOST_GID=.*/HOST_GID=$gid/" "$ENV_FILE"
-# # else
-# #   echo "HOST_GID=$gid" >> "$ENV_FILE"
-# # fi

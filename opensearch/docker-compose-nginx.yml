@@ -13,7 +13,7 @@ services:
         chmod -R u+rwX /usr/share/opensearch/data
 
     volumes:
-      - ../data/opensearch:/usr/share/opensearch/data
+      - /srv/DocuMind/data/opensearch:/usr/share/opensearch/data
 
 
 
@@ -46,10 +46,6 @@ services:
       - "9200"
       - "9600"
 
-    volumes:
-      # Left side: directory on your PC
-      # Right side: OpenSearch data directory in the container
-      - ../data/opensearch:/usr/share/opensearch/data
 
     ulimits:
       memlock:
@@ -72,9 +68,3 @@ services:
 
     restart: unless-stopped
 
-
-
-
-# curl -k \
-#   -u "admin:DOCUMIND_opensearch_password_2026" \
-#   https://localhost:9200

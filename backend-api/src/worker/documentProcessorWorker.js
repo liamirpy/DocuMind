@@ -4,6 +4,8 @@ import axios from 'axios';
 import FormData from 'form-data';
 import fs from 'node:fs';
 import path from 'node:path';
+import { pool } from "../db/pool.js";
+
 
 import {
     createWorkerRedisConnection
@@ -1133,6 +1135,79 @@ async function ingestChunks({
     }
 }
 
+
+async function updateDocumentStatus({
+  documentId,
+  userId,
+  status,
+  errorMessage = null,
+}) {
+  const allowedStatuses = new Set([
+    "uploaded",
+    "ready",
+    "failed",
+  ]);
+
+  if (!allowedStatuses.has(status)) {
+    throw new Error(
+      `Invalid document status: ${status}`,
+    );
+  }
+
+  const result = await pool.query(
+    `
+    UPDATE documents
+    SET
+      status = $1,
+
+      processed_at = CASE
+        WHEN $1 = 'ready' THEN NOW()
+        ELSE NULL
+      END,
+
+      error_message = CASE
+        WHEN $1 = 'failed' THEN $2
+        ELSE NULL
+      END
+
+    WHERE id = $3
+      AND user_id = $4
+      AND deleted_at IS NULL
+
+    RETURNING
+      id,
+      original_filename,
+      status,
+      processed_at,
+      error_message
+    `,
+    [
+      status,
+
+      errorMessage
+        ? String(errorMessage).slice(0, 5000)
+        : null,
+
+      documentId,
+      userId,
+    ],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error(
+      `Document ${documentId} was not found`,
+    );
+  }
+
+  return result.rows[0];
+}
+
+
+
+
+
+
+
 const worker = new Worker(
     QUEUE_NAME,
 
@@ -1386,6 +1461,12 @@ const worker = new Worker(
 
         await job.updateProgress(100);
 
+        await updateDocumentStatus({
+            documentId,
+            userId,
+            status: "ready",
+            });
+
         console.log(
             'OpenSearch ingestion completed:',
             ingestionResult
@@ -1513,14 +1594,112 @@ worker.on(
     }
 );
 
+// worker.on(
+//     'failed',
+//     (job, error) => {
+
+//         console.error(
+//             `Job ${job?.id || 'unknown'} failed:`,
+//             error.message
+//         );
+//     }
+// );
+
 worker.on(
-    'failed',
-    (job, error) => {
-        console.error(
-            `Job ${job?.id || 'unknown'} failed:`,
-            error.message
-        );
+  "failed",
+  async (job, error) => {
+    const jobId =
+      job?.id || "unknown";
+
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : String(error);
+
+    console.error(
+      `Job ${jobId} failed:`,
+      errorMessage,
+    );
+
+    if (!job) {
+      console.error(
+        "Cannot update document status because the failed job is unavailable.",
+      );
+
+      return;
     }
+
+    const {
+      documentId,
+      userId,
+    } = job.data || {};
+
+    if (!documentId || !userId) {
+      console.error(
+        "Cannot update document status because documentId or userId is missing.",
+        {
+          jobId,
+          documentId,
+          userId,
+        },
+      );
+
+      return;
+    }
+
+    /*
+     * When BullMQ retries are enabled, do not mark the
+     * document failed until the final attempt fails.
+     */
+    const maximumAttempts = Math.max(
+      Number(job.opts?.attempts) || 1,
+      1,
+    );
+
+    const isFinalAttempt =
+      job.attemptsMade >= maximumAttempts;
+
+    if (!isFinalAttempt) {
+      console.warn(
+        `Job ${jobId} will retry. Document remains uploaded.`,
+        {
+          attemptsMade:
+            job.attemptsMade,
+          maximumAttempts,
+        },
+      );
+
+      return;
+    }
+
+    try {
+      const updatedDocument =
+        await updateDocumentStatus({
+          documentId,
+          userId,
+          status: "failed",
+          errorMessage,
+        });
+
+      console.log(
+        `Document ${documentId} marked as failed.`,
+        {
+          status:
+            updatedDocument.status,
+
+          errorMessage:
+            updatedDocument.error_message,
+        },
+      );
+    } catch (statusError) {
+      console.error(
+        `Could not mark document ${documentId} as failed:`,
+        statusError instanceof Error
+          ? statusError.message
+          : statusError,
+      );
+    }
+  },
 );
 
 worker.on(

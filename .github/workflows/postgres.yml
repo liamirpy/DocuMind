@@ -1,4 +1,4 @@
-name: PostgreSQL Schema CI
+name: PostgreSQL
 
 on:
   push:

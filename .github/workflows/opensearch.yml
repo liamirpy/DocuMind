@@ -1,0 +1,148 @@
+name: OpenSearch CI
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "opensearch/**"
+      - ".github/workflows/opensearch-ci.yml"
+  pull_request:
+    paths:
+      - "opensearch/**"
+      - ".github/workflows/opensearch-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opensearch-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  OPENSEARCH_IMAGE: opensearchproject/opensearch:3.7.0
+  OPENSEARCH_CONTAINER: documind-opensearch
+  OPENSEARCH_URL: http://localhost:9200
+  TEMPLATE_NAME: documind-chunks-template
+  INDEX_NAME: documind-chunks-v1
+
+jobs:
+  validate:
+    name: Validate configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Validate JSON
+        run: python3 -m json.tool opensearch/index-template.json >/dev/null
+
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for script in opensearch/*.sh; do
+            echo "Checking ${script}"
+            bash -n "${script}"
+          done
+
+      - name: Validate Docker Compose files
+        run: |
+          docker compose -f opensearch/docker-compose.yml config --quiet
+          docker compose -f opensearch/docker-compose.nginx.yml config --quiet
+
+  integration:
+    name: OpenSearch smoke test
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Configure runner for OpenSearch
+        run: |
+          sudo sysctl -w vm.max_map_count=262144
+          mkdir -p opensearch/data
+          sudo chown -R 1000:1000 opensearch/data
+
+      - name: Start OpenSearch test container
+        run: |
+          docker run --detach \
+            --name "${OPENSEARCH_CONTAINER}" \
+            --publish 9200:9200 \
+            --publish 9600:9600 \
+            --env "discovery.type=single-node" \
+            --env "cluster.name=documind-ci" \
+            --env "node.name=documind-ci-node" \
+            --env "DISABLE_INSTALL_DEMO_CONFIG=true" \
+            --env "DISABLE_SECURITY_PLUGIN=true" \
+            --env "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" \
+            --ulimit memlock=-1:-1 \
+            --ulimit nofile=65536:65536 \
+            --volume "${GITHUB_WORKSPACE}/opensearch/data:/usr/share/opensearch/data" \
+            "${OPENSEARCH_IMAGE}"
+
+      - name: Wait for OpenSearch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          for attempt in $(seq 1 90); do
+            if curl \
+              --fail \
+              --silent \
+              --output /dev/null \
+              --connect-timeout 2 \
+              --max-time 5 \
+              "${OPENSEARCH_URL}"; then
+              echo "OpenSearch is ready."
+              exit 0
+            fi
+
+            echo "Waiting for OpenSearch (${attempt}/90)..."
+            sleep 2
+          done
+
+          echo "OpenSearch did not become ready." >&2
+          exit 1
+
+      - name: Install index template
+        run: |
+          curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --request PUT \
+            "${OPENSEARCH_URL}/_index_template/${TEMPLATE_NAME}" \
+            --header "Content-Type: application/json" \
+            --data-binary "@opensearch/index-template.json"
+
+      - name: Create test index
+        run: |
+          curl \
+            --fail-with-body \
+            --silent \
+            --show-error \
+            --request PUT \
+            "${OPENSEARCH_URL}/${INDEX_NAME}?wait_for_active_shards=1"
+
+      - name: Run repository verification
+        working-directory: opensearch
+        env:
+          EXPECTED_DATA_DIR: ${{ github.workspace }}/opensearch/data
+        run: bash ./verify.sh
+
+      - name: Show OpenSearch logs on failure
+        if: failure()
+        run: docker logs "${OPENSEARCH_CONTAINER}" || true
+
+      - name: Stop test container
+        if: always()
+        run: |
+          docker rm --force "${OPENSEARCH_CONTAINER}" 2>/dev/null || true
+          sudo rm -rf opensearch/data
