@@ -154,3 +154,24 @@ echo "Backup file:    $BACKUP_FILE"
 
 
 
+
+
+
+# ---------------------------------------------------
+# Update PaperMind .env file  
+# ---------------------------------------------------
+
+
+echo "Adding data diretory in paperMind env file"
+
+ENV_FILE="$ROOT_DIR/paperMind/.env"
+touch "$ENV_FILE"
+
+# Remove an existing DATA_DIR entry, then add the current value.
+sed -i.bak '/^HOST_ACCESS_ROOT=/d' "$ENV_FILE"
+printf 'HOST_ACCESS_ROOT=%s\n' "$DATA_DIR" >> "$ENV_FILE"
+rm -f "$ENV_FILE.bak"
+
+echo "Saved HOST_ACCESS to $ENV_FILE for paperMind"
+
+

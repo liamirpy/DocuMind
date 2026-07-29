@@ -1,0 +1,174 @@
+name: PaperMind CI
+
+on:
+  push:
+    paths:
+      - "paperMind/**"
+      - ".github/workflows/papermind-ci.yml"
+  pull_request:
+    paths:
+      - "paperMind/**"
+      - ".github/workflows/papermind-ci.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: papermind-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHON_VERSION: "3.12"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+
+jobs:
+  agent:
+    name: Agent lint and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: paperMind/agent
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            paperMind/agent/requirements.txt
+            paperMind/agent/requirements-dev.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt pytest-cov==6.2.1
+          python -m pip check
+
+      - name: Check formatting
+        run: ruff format --check app tests
+
+      - name: Run lint checks
+        run: ruff check app tests
+
+      - name: Run unit tests
+        env:
+          LLM_ENABLED: "false"
+          PATH_API_ENABLED: "false"
+          OUTPUT_DIR: ${{ runner.temp }}/papermind-agent-output
+        run: python -m pytest -q --cov=app --cov-report=term-missing
+
+      - name: Compile Python sources
+        run: python -m compileall -q app
+
+  extractor:
+    name: Extractor lint and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: paperMind/tools/api
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            paperMind/tools/api/requirements-base.txt
+            paperMind/tools/api/requirements-dev.txt
+
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt pytest-asyncio==1.1.0
+          python -m pip check
+
+      - name: Check formatting
+        run: ruff format --check app tests
+
+      - name: Run lint checks
+        run: ruff check app tests
+
+      - name: Run unit tests
+        env:
+          DOCLING_PRELOAD_ON_STARTUP: "false"
+          SERVE_ASSETS: "false"
+          ASSETS_DIR: ${{ runner.temp }}/papermind-extractor-assets
+        run: python -m pytest -q --cov=app --cov-report=term-missing
+
+      - name: Compile Python sources
+        run: python -m compileall -q app
+
+  repository-validation:
+    name: Compose and shell validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate shell scripts
+        run: |
+          find paperMind -type f -name "*.sh" -print0 |
+            while IFS= read -r -d '' script; do
+              echo "Checking ${script}"
+              bash -n "${script}"
+            done
+
+      - name: Validate root Compose configurations
+        working-directory: paperMind
+        run: |
+          empty_env="${RUNNER_TEMP}/papermind-empty.env"
+          : > "${empty_env}"
+
+          docker compose --env-file "${empty_env}" -f compose.yaml config --quiet
+          docker compose --env-file "${empty_env}" \
+            -f compose.yaml \
+            -f compose-nvidia.yaml \
+            config --quiet
+
+          docker compose --env-file "${empty_env}" -f compose-nginx.yaml config --quiet
+          docker compose --env-file "${empty_env}" \
+            -f compose-nginx.yaml \
+            -f compose-nvidia-nginx.yaml \
+            config --quiet
+
+      - name: Validate standalone service Compose configurations
+        working-directory: paperMind
+        run: |
+          empty_env="${RUNNER_TEMP}/papermind-empty.env"
+
+          docker compose --env-file "${empty_env}" \
+            -f tools/docker-compose.yml \
+            config --quiet
+          docker compose --env-file "${empty_env}" \
+            -f tools/docker-compose.yml \
+            -f tools/docker-compose.gpu.yml \
+            config --quiet
+          docker compose --env-file "${empty_env}" \
+            -f agent/docker-compose.yml \
+            config --quiet
+
+      - name: Build the agent container
+        working-directory: paperMind
+        run: docker build --file agent/Dockerfile --tag papermind-agent:ci agent
