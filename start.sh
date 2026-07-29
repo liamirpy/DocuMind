@@ -273,3 +273,118 @@ echo "  $BACKUP_FILE"
 # # =========================================================
 # # Update Ingester .env file  
 # # =========================================================
+
+
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+# =========================================================
+# Configuration
+# =========================================================
+
+ENV_FILE="$ROOT_DIR/ingester/.env"
+
+# Define the values here.
+# Because these assignments are unquoted, use values without spaces or
+# shell-special characters.
+INGESTOR_API_KEY_VALUE=hello
+OPENSEARCH_USERNAME_VALUE=admin
+OPENSEARCH_PASSWORD_VALUE=DOCUMIND_opensearch_password_2026
+
+# =========================================================
+# Validation
+# =========================================================
+
+if [[ ! -f "$ENV_FILE" ]]; then
+    echo "Error: .env file not found: $ENV_FILE" >&2
+    exit 1
+fi
+
+required_variables=(
+    INGESTOR_API_KEY
+    OPENSEARCH_USERNAME
+    OPENSEARCH_PASSWORD
+)
+
+for variable_name in "${required_variables[@]}"; do
+    if ! grep -q "^${variable_name}=" "$ENV_FILE"; then
+        echo "Error: ${variable_name} does not exist in $ENV_FILE" >&2
+        exit 1
+    fi
+done
+
+if [[ -z "$OPENSEARCH_USERNAME_VALUE" ]]; then
+    echo "Error: OPENSEARCH_USERNAME_VALUE cannot be empty." >&2
+    exit 1
+fi
+
+if [[ -z "$OPENSEARCH_PASSWORD_VALUE" ]]; then
+    echo "Error: OPENSEARCH_PASSWORD_VALUE cannot be empty." >&2
+    exit 1
+fi
+
+# Reject line breaks because each environment variable must remain on one line.
+for value in \
+    "$INGESTOR_API_KEY_VALUE" \
+    "$OPENSEARCH_USERNAME_VALUE" \
+    "$OPENSEARCH_PASSWORD_VALUE"
+do
+    if [[ "$value" == *$'\n'* || "$value" == *$'\r'* ]]; then
+        echo "Error: Environment values cannot contain line breaks." >&2
+        exit 1
+    fi
+done
+
+# =========================================================
+# Backup
+# =========================================================
+
+BACKUP_FILE="${ENV_FILE}.backup"
+TEMP_FILE="$(mktemp "${ENV_FILE}.tmp.XXXXXX")"
+
+cp "$ENV_FILE" "$BACKUP_FILE"
+
+cleanup() {
+    rm -f "$TEMP_FILE"
+}
+
+trap cleanup EXIT
+
+# =========================================================
+# Replace existing lines
+# =========================================================
+
+while IFS= read -r line || [[ -n "$line" ]]; do
+    case "$line" in
+        INGESTOR_API_KEY=*)
+            printf 'INGESTOR_API_KEY=%s\n' "$INGESTOR_API_KEY_VALUE"
+            ;;
+
+        OPENSEARCH_USERNAME=*)
+            printf 'OPENSEARCH_USERNAME=%s\n' "$OPENSEARCH_USERNAME_VALUE"
+            ;;
+
+        OPENSEARCH_PASSWORD=*)
+            printf 'OPENSEARCH_PASSWORD=%s\n' "$OPENSEARCH_PASSWORD_VALUE"
+            ;;
+
+        *)
+            printf '%s\n' "$line"
+            ;;
+    esac
+done < "$ENV_FILE" > "$TEMP_FILE"
+
+# Preserve the original file permissions.
+chmod --reference="$ENV_FILE" "$TEMP_FILE"
+
+mv "$TEMP_FILE" "$ENV_FILE"
+trap - EXIT
+
+# =========================================================
+# Result
+# =========================================================
+
+echo "Ingestor configuration updated successfully."
+echo "Environment file: $ENV_FILE"
+echo "Backup file:      $BACKUP_FILE"

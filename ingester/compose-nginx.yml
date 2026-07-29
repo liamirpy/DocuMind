@@ -1,5 +1,5 @@
 services:
-  ingestor-api:
+  ingester-api:
     build:
       context: .
     image: documind-ingestor-api:2.0.0
@@ -8,6 +8,12 @@ services:
     expose:
       - "8080"
     networks:
-      - default
+      - backend_network
     restart: unless-stopped
+
+
+networks:
+  backend_network:
+    external: true
+
 

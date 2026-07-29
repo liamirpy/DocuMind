@@ -1,0 +1,210 @@
+name: Ingester CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+    paths:
+      - "ingester/**"
+      - ".github/workflows/ingester.yml"
+  pull_request:
+    paths:
+      - "ingester/**"
+      - ".github/workflows/ingester.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+
+defaults:
+  run:
+    working-directory: ingester
+
+jobs:
+  quality:
+    name: Quality and syntax
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: |
+            ingester/requirements.txt
+            ingester/requirements-dev.txt
+            ingester/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
+
+      - name: Run Ruff linting
+        run: ruff check .
+
+      - name: Compile Python sources
+        run: python -m compileall -q src tests
+
+      - name: Validate JSON files
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(Path(".").rglob("*.json"))
+          for path in files:
+              with path.open(encoding="utf-8") as handle:
+                  json.load(handle)
+
+          print(f"Validated {len(files)} JSON files")
+          PY
+
+      - name: Validate shell scripts
+        run: |
+          sh -n run-ingestor.sh
+          bash -n upload-directory.sh
+
+      - name: Check installed dependencies
+        run: python -m pip check
+
+  tests:
+    name: Tests on Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.11"
+          - "3.12"
+
+    env:
+      INGESTOR_API_KEY: ""
+      OPENSEARCH_INSTALL_TEMPLATE: "false"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: "${{ matrix.python-version }}"
+          cache: pip
+          cache-dependency-path: |
+            ingester/requirements.txt
+            ingester/requirements-dev.txt
+            ingester/pyproject.toml
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
+
+      - name: Run unit and API tests
+        run: pytest -q
+
+      - name: Run offline CLI smoke test
+        run: |
+          documind-ingestor examples/chunks.json \
+            --expected-embedding-dimensions 32 \
+            --dry-run | tee /tmp/ingester-cli-result.txt
+
+          grep -q "INGESTION_VALIDATED" /tmp/ingester-cli-result.txt
+
+  compose:
+    name: Docker Compose validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Validate standard Compose file
+        run: docker compose -f compose.yml config --quiet
+
+      - name: Validate Nginx Compose file
+        run: docker compose -f compose-nginx.yml config --quiet
+
+  docker:
+    name: Docker build and API smoke test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build --tag documind-ingestor:ci .
+
+      - name: Start API container
+        run: |
+          docker run --detach \
+            --name documind-ingestor-ci \
+            --publish 18080:8080 \
+            --env INGESTOR_API_KEY= \
+            documind-ingestor:ci
+
+      - name: Wait for API health
+        run: |
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error \
+              http://127.0.0.1:18080/health > /tmp/ingester-health.json; then
+              cat /tmp/ingester-health.json
+              exit 0
+            fi
+            sleep 2
+          done
+
+          echo "The Ingester API did not become healthy." >&2
+          docker logs documind-ingestor-ci
+          exit 1
+
+      - name: Test dry-run upload
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request POST http://127.0.0.1:18080/ingest \
+            --form "payload=@examples/chunks.json;type=application/json" \
+            --form 'parameters={"dry_run":true,"expected_embedding_dimensions":32}' \
+            --output /tmp/ingester-response.json
+
+          cat /tmp/ingester-response.json
+
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          response = json.loads(
+              Path("/tmp/ingester-response.json").read_text(encoding="utf-8")
+          )
+          assert response["status"] == "validated", response
+          assert response["dry_run"] is True, response
+          assert response["chunks"] > 0, response
+          assert response["vectors"] > 0, response
+          PY
+
+      - name: Show container logs
+        if: always()
+        run: docker logs documind-ingestor-ci || true
+
+      - name: Stop API container
+        if: always()
+        run: docker rm --force documind-ingestor-ci || true
