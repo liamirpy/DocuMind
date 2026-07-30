@@ -9,5 +9,4 @@ __pycache__
 build
 dist
 
-.env
 *.backup.*
