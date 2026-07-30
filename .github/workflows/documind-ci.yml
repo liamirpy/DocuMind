@@ -176,6 +176,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
     defaults:
       run:
         working-directory: backend-api
@@ -191,6 +202,12 @@ jobs:
           cache: npm
           cache-dependency-path: backend-api/package-lock.json
 
+      - name: Verify backend environment file
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          test -f .env
+
       - name: Install dependencies
         run: npm ci
 
@@ -201,8 +218,13 @@ jobs:
           find src -type f -name '*.js' -print0 \
             | xargs -0 -n1 node --check
 
-      - name: Import application modules
+      - name: Import application and verify Redis queue
+        shell: bash
         env:
+          # This backend process runs on the GitHub-hosted runner.
+          # The Redis service container is published to runner localhost.
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: "6379"
           OPENSEARCH_NODE: http://127.0.0.1:9200
           JWT_SECRET: ci-only-secret
           DB_HOST: 127.0.0.1
@@ -210,9 +232,24 @@ jobs:
           DB_USER: documind
           DB_PASSWORD: ci-only-password
           DB_NAME: documind
-          REDIS_HOST: 127.0.0.1
-          REDIS_PORT: "6379"
-        run: node -e "import('./src/app.js').then(() => console.log('backend imports successfully'))"
+        run: |
+          set -Eeuo pipefail
+
+          node --env-file=.env --input-type=module <<'NODE'
+          await import("./src/app.js");
+
+          const {
+            documentQueue
+          } = await import("./src/queues/documentQueue.js");
+
+          await documentQueue.waitUntilReady();
+
+          console.log("Backend imports successfully");
+          console.log("Redis document queue is ready");
+
+          await documentQueue.close();
+          NODE
+
 
   python:
     name: ${{ matrix.name }}
