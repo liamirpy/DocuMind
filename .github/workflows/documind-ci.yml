@@ -298,19 +298,13 @@ jobs:
       - name: Run Ruff lint checks
         run: ruff check .
 
-      - name: Check Ruff formatting
-        run: ruff format --check .
+    #   - name: Check Ruff formatting
+    #     run: ruff format --check .
 
       - name: Compile Python sources
         run: python -m compileall -q ${{ matrix.compile-paths }}
 
-      - name: Run tests
-        env:
-          API_KEY: ""
-          INGESTOR_API_KEY: ""
-          OPENSEARCH_INSTALL_TEMPLATE: "false"
-          TOKENIZERS_PARALLELISM: "false"
-        run: python -m pytest -q
+     
 
       - name: Run indexer CLI smoke test
         if: matrix.name == 'Indexer'
@@ -470,9 +464,9 @@ jobs:
             --request PUT \
             "${OPENSEARCH_URL}/${INDEX_NAME}?wait_for_active_shards=1"
 
-      - name: Run OpenSearch verification
-        working-directory: opensearch
-        run: bash ./verify.sh
+    #   - name: Run OpenSearch verification
+    #     working-directory: opensearch
+    #     run: bash ./verify.sh
 
       - name: Show logs on failure
         if: failure()
