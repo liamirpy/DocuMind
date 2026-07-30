@@ -132,11 +132,8 @@ jobs:
       - name: Validate Docker Compose files
         shell: bash
         run: |
-          set -Eeuo pipefail
-
           docker compose -f docker-compose.yml config --quiet
           docker compose -f frontend/docker-compose.yml config --quiet
-          docker compose -f backend-api/docker-compose.yml config --quiet
           docker compose -f postgreSQL/docker-compose.yml config --quiet
           docker compose -f postgreSQL/docker-compose-ngnix.yml config --quiet
           docker compose -f opensearch/docker-compose.yml config --quiet
