@@ -133,7 +133,7 @@ jobs:
         shell: bash
         run: |
           docker compose -f docker-compose.yml config --quiet
-
+   
 
   frontend:
     name: Frontend
@@ -235,21 +235,42 @@ jobs:
         run: |
           set -Eeuo pipefail
 
-          node --env-file=.env --input-type=module <<'NODE'
-          await import("./src/app.js");
+          timeout 30s node --env-file=.env --input-type=module <<'NODE'
+          let documentQueue;
+          let redisClient;
 
-          const {
-            documentQueue
-          } = await import("./src/queues/documentQueue.js");
+          try {
+            await import("./src/app.js");
 
-          await documentQueue.waitUntilReady();
+            ({
+              documentQueue
+            } = await import("./src/queues/documentQueue.js"));
 
-          console.log("Backend imports successfully");
-          console.log("Redis document queue is ready");
+            await documentQueue.waitUntilReady();
+            redisClient = await documentQueue.client;
 
-          await documentQueue.close();
+            console.log("Backend imports successfully");
+            console.log("Redis document queue is ready");
+          } finally {
+            if (documentQueue) {
+              await documentQueue.close();
+            }
+
+            // documentQueue.js passes an externally created IORedis instance
+            // to BullMQ. Closing the Queue does not necessarily close that
+            // externally owned client, so terminate it explicitly.
+            if (redisClient && redisClient.status !== "end") {
+              try {
+                await redisClient.quit();
+              } catch (error) {
+                console.error("Graceful Redis shutdown failed:", error);
+                redisClient.disconnect();
+              }
+            }
+          }
+
+          console.log("Backend smoke test shut down cleanly");
           NODE
-
 
   python:
     name: ${{ matrix.name }}
