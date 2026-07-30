@@ -27,6 +27,20 @@ type HighlightRect = {
   height: number;
 };
 
+type RenderResult = {
+  key: string;
+  pageSize: {
+    width: number;
+    height: number;
+  };
+  highlight: HighlightRect | null;
+};
+
+type RenderFailure = {
+  key: string;
+  message: string;
+};
+
 type PdfViewportLike = {
   width: number;
   height: number;
@@ -153,7 +167,24 @@ function looksLikePdf(data: ArrayBuffer): boolean {
   return String.fromCharCode(...bytes) === "%PDF-";
 }
 
-export function PdfCitationViewer({
+export function PdfCitationViewer(
+  props: PdfCitationViewerProps,
+) {
+  const resetKey = [
+    props.source.documentId,
+    props.source.citationId,
+    props.source.pageStart ?? 1,
+  ].join(":");
+
+  return (
+    <PdfCitationViewerContent
+      key={resetKey}
+      {...props}
+    />
+  );
+}
+
+function PdfCitationViewerContent({
   source,
   document,
   onClose,
@@ -177,18 +208,14 @@ export function PdfCitationViewer({
   const [pageCount, setPageCount] = useState(0);
   const [zoom, setZoom] = useState(1.25);
 
-  const [pageSize, setPageSize] = useState({
-    width: 0,
-    height: 0,
-  });
+  const [renderResult, setRenderResult] =
+    useState<RenderResult | null>(null);
 
-  const [highlight, setHighlight] =
-    useState<HighlightRect | null>(null);
+  const [renderFailure, setRenderFailure] =
+    useState<RenderFailure | null>(null);
 
   const [loading, setLoading] = useState(true);
-  const [rendering, setRendering] =
-    useState(false);
-  const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
 
   const documentName =
     document?.original_filename ||
@@ -208,6 +235,41 @@ export function PdfCitationViewer({
         : null,
     [source.bbox],
   );
+
+  const bboxKey = bbox
+    ? `${bbox.l},${bbox.b},${bbox.r},${bbox.t}`
+    : "none";
+
+  const renderKey = [
+    pageNumber,
+    zoom,
+    citedPage,
+    bboxKey,
+  ].join(":");
+
+  const activeRenderResult =
+    renderResult?.key === renderKey
+      ? renderResult
+      : null;
+
+  const activeRenderError =
+    renderFailure?.key === renderKey
+      ? renderFailure.message
+      : "";
+
+  const error = loadError || activeRenderError;
+
+  const rendering = Boolean(
+    pdf && !activeRenderResult && !activeRenderError,
+  );
+
+  const pageSize = activeRenderResult?.pageSize ?? {
+    width: 0,
+    height: 0,
+  };
+
+  const highlight =
+    activeRenderResult?.highlight ?? null;
 
   useEffect(() => {
     const previousOverflow =
@@ -246,13 +308,9 @@ export function PdfCitationViewer({
       }
     }
 
-    setPdf(null);
-    setPageCount(0);
-    setPageSize({ width: 0, height: 0 });
-    setHighlight(null);
-    setLoading(true);
-    setRendering(false);
-    setError("");
+    // This component is keyed by the selected citation, so changing the
+    // source remounts it with fresh initial state instead of synchronously
+    // resetting several state variables inside this Effect.
 
     async function loadPdf(): Promise<void> {
       try {
@@ -300,7 +358,7 @@ export function PdfCitationViewer({
           requestError,
         );
 
-        setError(
+        setLoadError(
           requestError instanceof ApiError ||
             requestError instanceof Error
             ? requestError.message
@@ -348,9 +406,8 @@ export function PdfCitationViewer({
     let active = true;
     let localRenderTask: PdfRenderTaskLike | null = null;
 
-    setRendering(true);
-    setHighlight(null);
-    setError("");
+    // Rendering status is derived from renderKey and the latest completed
+    // result, so this Effect only synchronizes with PDF.js and the canvas.
 
     async function renderPage(): Promise<void> {
       try {
@@ -435,23 +492,24 @@ export function PdfCitationViewer({
         visibleContext.drawImage(renderCanvas, 0, 0);
         visibleContext.restore();
 
-        setPageSize({
-          width: cssViewport.width,
-          height: cssViewport.height,
+        const nextHighlight =
+          bbox && pageNumber === citedPage
+            ? convertPdfBoundingBox(
+                cssViewport,
+                bbox,
+              )
+            : null;
+
+        setRenderResult({
+          key: renderKey,
+          pageSize: {
+            width: cssViewport.width,
+            height: cssViewport.height,
+          },
+          highlight: nextHighlight,
         });
 
-        if (
-          bbox &&
-          pageNumber === citedPage
-        ) {
-          
-          setHighlight(
-            convertPdfBoundingBox(
-              cssViewport,
-              bbox,
-            ),
-          );
-
+        if (nextHighlight) {
           window.setTimeout(() => {
             if (!active) {
               return;
@@ -477,16 +535,13 @@ export function PdfCitationViewer({
           renderError,
         );
 
-        setError(
-          `Could not render this PDF page: ${describeError(
+        setRenderFailure({
+          key: renderKey,
+          message: `Could not render this PDF page: ${describeError(
             renderError,
           )}`,
-        );
+        });
       } finally {
-        if (active) {
-          setRendering(false);
-        }
-
         if (
           renderTaskRef.current === localRenderTask
         ) {
@@ -512,6 +567,7 @@ export function PdfCitationViewer({
     citedPage,
     pageNumber,
     pdf,
+    renderKey,
     zoom,
   ]);
 
