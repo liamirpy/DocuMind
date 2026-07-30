@@ -4,6 +4,8 @@ DocuMind is a self-hosted document question-answering platform built around a re
 
 The repository is a multi-service application containing a Next.js frontend, an Express API and background worker, Python document-processing services, PostgreSQL, Redis, OpenSearch, Ollama, and Nginx.
 
+🎥 **Demo video:** [Watch DocuMind in action](VIDEO_LINK_HERE) to see the complete upload, document-processing, retrieval, and cited question-answering output.
+
 ## Features
 
 - User registration, login, refresh-token sessions, and authenticated APIs.
@@ -127,7 +129,20 @@ At minimum, replace every value containing `change-me` and review these settings
 
 The indexer, ingester, backend, and OpenSearch vector mapping must use the same embedding dimension. The sample development data uses 32-dimensional deterministic embeddings; production defaults are intended for a real sentence-transformer model and must match the OpenSearch index template.
 
-## Quick start with Docker Compose
+## GPU quick start
+
+The default root deployment is GPU-enabled. Install Docker Engine, Docker Compose v2, the NVIDIA driver, and NVIDIA Container Toolkit, then run the startup script from the repository root:
+
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+`start.sh` creates the required data directories, prepares the service environment files, starts the complete Docker Compose stack, and applies the PostgreSQL and OpenSearch schemas. After startup, open `http://localhost`.
+
+> The first startup can take longer because Docker images and Ollama/model assets may need to be downloaded.
+
+## Manual Docker Compose setup
 
 ### 1. Clone and configure
 
