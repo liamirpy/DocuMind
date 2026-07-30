@@ -60,12 +60,34 @@ services:
         read_only: true
 
     depends_on:
-      api:
-        condition: service_started
+      - frontend
+        
+    networks:
+      - public_network
+  
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+
+    expose:
+      - "3000"
+
+    environment:
+      NODE_ENV: production
+      HOSTNAME: "0.0.0.0"
+      PORT: "3000"
+      API_PROXY_TARGET: "http://api:3000"
+
+    depends_on:
+      - api
 
     networks:
       - public_network
-      
+      - backend_network
+
+    restart: unless-stopped
 
 
   # ---------------------------------------------------
@@ -111,7 +133,6 @@ services:
       #   condition: service_healthy
 
     networks:
-      - public_network
       - backend_network
 
       # - application_network
@@ -165,7 +186,6 @@ services:
       # the default Compose network.
       # - default
       - backend_network
-      - public_network
 
       # Redis
       # - application_network
