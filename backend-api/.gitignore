@@ -1,5 +1,4 @@
 node_modules
-# .env
 src/uploads/*
 !src/uploads/.gitkeep
 
@@ -11,9 +10,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-.env
-.env.*
-!.env.example
 
 .git/
 .gitignore
