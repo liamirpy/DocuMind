@@ -1,0 +1,570 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  repository:
+    name: Repository configuration
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install configuration validator
+        run: python -m pip install "PyYAML>=6,<7"
+
+      - name: Reject committed runtime environment files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          invalid_files="$({
+            git ls-files | grep -E '(^|/)\.env($|\.)' || true
+          } | grep -Ev '(^|/)\.env\.example$' || true)"
+
+          if [[ -n "${invalid_files}" ]]; then
+            echo "Runtime environment files must not be committed:" >&2
+            echo "${invalid_files}" >&2
+            exit 1
+          fi
+
+      - name: Check for merge-conflict markers
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          if git grep -n -E '^(<<<<<<<|=======|>>>>>>>)' -- ':!package-lock.json'; then
+            echo "Merge-conflict markers found." >&2
+            exit 1
+          fi
+
+      - name: Validate JSON and YAML files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          import yaml
+
+          excluded_parts = {".git", ".next", "node_modules", "__MACOSX"}
+
+          json_files = []
+          yaml_files = []
+          for path in Path(".").rglob("*"):
+              if not path.is_file() or excluded_parts.intersection(path.parts):
+                  continue
+              if path.suffix == ".json":
+                  json_files.append(path)
+              elif path.suffix in {".yml", ".yaml"}:
+                  yaml_files.append(path)
+
+          for path in sorted(json_files):
+              with path.open(encoding="utf-8") as stream:
+                  json.load(stream)
+
+          for path in sorted(yaml_files):
+              with path.open(encoding="utf-8") as stream:
+                  list(yaml.safe_load_all(stream))
+
+          print(f"Validated {len(json_files)} JSON files and {len(yaml_files)} YAML files")
+          PY
+
+      - name: Validate shell scripts
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          while IFS= read -r -d '' script; do
+            echo "checking ${script}"
+            bash -n "${script}"
+          done < <(
+            find . \
+              -path './.git' -prune -o \
+              -path './frontend/node_modules' -prune -o \
+              -type f -name '*.sh' -print0
+          )
+
+      - name: Prepare Compose environment files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          cp .env.example .env
+          cp postgreSQL/.env.example postgreSQL/.env
+          cp indexer/.env.example indexer/.env
+          cp ingester/.env.example ingester/.env
+          cp paperMind/.env.example paperMind/.env
+          cp paperMind/agent/.env.example paperMind/agent/.env
+          cp paperMind/tools/.env.example paperMind/tools/.env
+          cp backend-api/.env.example backend-api/.env
+          cp frontend/.env.example frontend/.env.local
+
+          sed -i "s|^DATA_DIR=.*|DATA_DIR=${RUNNER_TEMP}/documind-postgres|" postgreSQL/.env
+          sed -i "s|^HOST_ACCESS_ROOT=.*|HOST_ACCESS_ROOT=${RUNNER_TEMP}/documind-data|" paperMind/.env
+          sed -i "s|^OUTPUT_DIR=.*|OUTPUT_DIR=${RUNNER_TEMP}/documind-output|" paperMind/.env
+          sed -i "s|^CUSTOM_OUTPUT_DIR=.*|CUSTOM_OUTPUT_DIR=${RUNNER_TEMP}/documind-output|" paperMind/.env
+          sed -i "s|^DOCUMIND_INPUT_ROOT_HOST=.*|DOCUMIND_INPUT_ROOT_HOST=${RUNNER_TEMP}/documind-data|" indexer/.env
+          sed -i "s|^DOCUMIND_OUTPUT_ROOT_HOST=.*|DOCUMIND_OUTPUT_ROOT_HOST=${RUNNER_TEMP}/documind-data|" indexer/.env
+          mkdir -p \
+            "${RUNNER_TEMP}/documind-postgres" \
+            "${RUNNER_TEMP}/documind-data" \
+            "${RUNNER_TEMP}/documind-output"
+
+      - name: Validate Docker Compose files
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          docker compose -f docker-compose.yml config --quiet
+          docker compose -f frontend/docker-compose.yml config --quiet
+          docker compose -f backend-api/docker-compose.yml config --quiet
+          docker compose -f postgreSQL/docker-compose.yml config --quiet
+          docker compose -f postgreSQL/docker-compose-ngnix.yml config --quiet
+          docker compose -f opensearch/docker-compose.yml config --quiet
+          docker compose -f opensearch/docker-compose-nginx-ci.yml config --quiet
+          docker compose -f indexer/docker-compose.yml config --quiet
+          docker compose -f indexer/docker-compose-nginx.yml config --quiet
+          docker compose -f ingester/compose.yml config --quiet
+          docker compose -f ingester/compose-nginx-ci.yml config --quiet
+          docker compose -f paperMind/compose.yaml config --quiet
+          docker compose -f paperMind/agent/docker-compose.yml config --quiet
+          docker compose -f paperMind/compose.yaml -f paperMind/compose-nvidia.yaml config --quiet
+          docker compose -f paperMind/compose-nginx.yaml -f paperMind/compose-nvidia-nginx.yaml config --quiet
+          docker compose -f paperMind/tools/docker-compose.yml config --quiet
+          docker compose -f paperMind/tools/docker-compose.yml -f paperMind/tools/docker-compose.gpu.yml config --quiet
+
+  frontend:
+    name: Frontend
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript checks
+        run: npm exec tsc -- --noEmit
+
+      - name: Build production frontend
+        run: npm run build
+
+  backend:
+    name: Backend API
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: backend-api
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend-api/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check JavaScript syntax
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          find src -type f -name '*.js' -print0 \
+            | xargs -0 -n1 node --check
+
+      - name: Import application modules
+        env:
+          OPENSEARCH_NODE: http://127.0.0.1:9200
+          JWT_SECRET: ci-only-secret
+          DB_HOST: 127.0.0.1
+          DB_PORT: "5432"
+          DB_USER: documind
+          DB_PASSWORD: ci-only-password
+          DB_NAME: documind
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: "6379"
+        run: node -e "import('./src/app.js').then(() => console.log('backend imports successfully'))"
+
+  python:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Indexer
+            directory: indexer
+            python-version: "3.12"
+            requirements: requirements-dev.txt
+            install-project: "true"
+            compile-paths: "app tests examples"
+          - name: Ingester
+            directory: ingester
+            python-version: "3.12"
+            requirements: requirements-dev.txt
+            install-project: "true"
+            compile-paths: "src tests"
+          - name: PaperMind agent
+            directory: paperMind/agent
+            python-version: "3.12"
+            requirements: requirements-dev.txt
+            install-project: "false"
+            compile-paths: "app tests"
+          - name: PaperMind extraction API
+            directory: paperMind/tools/api
+            python-version: "3.12"
+            requirements: requirements-dev.txt
+            install-project: "false"
+            compile-paths: "app tests"
+
+    defaults:
+      run:
+        working-directory: ${{ matrix.directory }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: ${{ matrix.directory }}/${{ matrix.requirements }}
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install -r "${{ matrix.requirements }}"
+          if [[ "${{ matrix.install-project }}" == "true" ]]; then
+            python -m pip install -e .
+          fi
+          python -m pip check
+
+      - name: Run Ruff lint checks
+        run: ruff check .
+
+      - name: Check Ruff formatting
+        run: ruff format --check .
+
+      - name: Compile Python sources
+        run: python -m compileall -q ${{ matrix.compile-paths }}
+
+      - name: Run tests
+        env:
+          API_KEY: ""
+          INGESTOR_API_KEY: ""
+          OPENSEARCH_INSTALL_TEMPLATE: "false"
+          TOKENIZERS_PARALLELISM: "false"
+        run: python -m pytest -q
+
+      - name: Run indexer CLI smoke test
+        if: matrix.name == 'Indexer'
+        run: |
+          rm -rf .ci-output
+          documind-indexer chunk examples/sample_pdf_output \
+            --user-id ci-user \
+            --document-id ci-document \
+            --config examples/chunking_config.dev.json \
+            --output .ci-output/chunks.json
+          python -c "import json; p=json.load(open('.ci-output/chunks.json')); assert p['counts']['total'] > 0"
+
+      - name: Run ingester CLI smoke test
+        if: matrix.name == 'Ingester'
+        run: |
+          documind-ingestor examples/chunks.json \
+            --expected-embedding-dimensions 32 \
+            --dry-run | tee /tmp/ingester-result.txt
+          grep -q INGESTION_VALIDATED /tmp/ingester-result.txt
+
+  postgres:
+    name: PostgreSQL schema
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: documind
+          POSTGRES_PASSWORD: ci-documind-password
+          POSTGRES_DB: documind
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U documind -d documind"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    env:
+      PGPASSWORD: ci-documind-password
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
+      - name: Apply schema
+        run: |
+          psql \
+            --host 127.0.0.1 \
+            --port 5432 \
+            --username documind \
+            --dbname documind \
+            --set ON_ERROR_STOP=1 \
+            --file postgreSQL/schema.sql
+
+      - name: Verify required tables
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          count="$(psql \
+            --host 127.0.0.1 \
+            --port 5432 \
+            --username documind \
+            --dbname documind \
+            --tuples-only \
+            --no-align \
+            --command "
+              SELECT count(*)
+              FROM information_schema.tables
+              WHERE table_schema = 'public'
+                AND table_name IN (
+                  'users',
+                  'documents',
+                  'folders',
+                  'folder_documents',
+                  'document_processing_jobs',
+                  'document_chunks',
+                  'conversations',
+                  'messages',
+                  'message_sources',
+                  'user_sessions'
+                );
+            ")"
+
+          [[ "${count}" == "10" ]] || {
+            echo "Expected 10 required tables, found ${count}." >&2
+            exit 1
+          }
+
+  opensearch:
+    name: OpenSearch integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    env:
+      OPENSEARCH_IMAGE: opensearchproject/opensearch:3.7.0
+      OPENSEARCH_CONTAINER: documind-opensearch-ci
+      OPENSEARCH_URL: http://127.0.0.1:9200
+      TEMPLATE_NAME: documind-chunks-template
+      INDEX_NAME: documind-chunks-v1
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Configure runner
+        run: sudo sysctl -w vm.max_map_count=262144
+
+      - name: Start OpenSearch
+        run: |
+          docker run --detach \
+            --name "${OPENSEARCH_CONTAINER}" \
+            --publish 9200:9200 \
+            --publish 9600:9600 \
+            --env discovery.type=single-node \
+            --env cluster.name=documind-ci \
+            --env node.name=documind-ci-node \
+            --env DISABLE_INSTALL_DEMO_CONFIG=true \
+            --env DISABLE_SECURITY_PLUGIN=true \
+            --env OPENSEARCH_JAVA_OPTS=-Xms512m\ -Xmx512m \
+            --ulimit memlock=-1:-1 \
+            --ulimit nofile=65536:65536 \
+            "${OPENSEARCH_IMAGE}"
+
+      - name: Wait for OpenSearch
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for attempt in $(seq 1 90); do
+            if curl --fail --silent --output /dev/null "${OPENSEARCH_URL}"; then
+              exit 0
+            fi
+            echo "Waiting for OpenSearch (${attempt}/90)"
+            sleep 2
+          done
+          docker logs "${OPENSEARCH_CONTAINER}" || true
+          exit 1
+
+      - name: Install index template
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request PUT \
+            "${OPENSEARCH_URL}/_index_template/${TEMPLATE_NAME}" \
+            --header "Content-Type: application/json" \
+            --data-binary @opensearch/index-template.json
+
+      - name: Create test index
+        run: |
+          curl --fail-with-body --silent --show-error \
+            --request PUT \
+            "${OPENSEARCH_URL}/${INDEX_NAME}?wait_for_active_shards=1"
+
+      - name: Run OpenSearch verification
+        working-directory: opensearch
+        run: bash ./verify.sh
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker logs "${OPENSEARCH_CONTAINER}" || true
+
+      - name: Stop OpenSearch
+        if: always()
+        run: docker rm --force "${OPENSEARCH_CONTAINER}" 2>/dev/null || true
+
+  docker-build:
+    name: Docker build - ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs:
+      - frontend
+      - backend
+      - python
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: frontend
+            context: frontend
+            dockerfile: frontend/Dockerfile
+          - name: backend
+            context: backend-api
+            dockerfile: backend-api/Dockerfile
+          - name: indexer
+            context: indexer
+            dockerfile: indexer/Dockerfile
+          - name: ingester
+            context: ingester
+            dockerfile: ingester/Dockerfile
+          - name: papermind-agent
+            context: paperMind/agent
+            dockerfile: paperMind/agent/Dockerfile
+          - name: papermind-tools
+            context: paperMind/tools/api
+            dockerfile: paperMind/tools/api/Dockerfile
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.dockerfile }}
+          push: false
+          load: false
+          tags: documind/${{ matrix.name }}:ci
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.name }}
+
+  ci-success:
+    name: CI success
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - repository
+      - frontend
+      - backend
+      - python
+      - postgres
+      - opensearch
+      - docker-build
+
+    steps:
+      - name: Verify required jobs
+        env:
+          REPOSITORY_RESULT: ${{ needs.repository.result }}
+          FRONTEND_RESULT: ${{ needs.frontend.result }}
+          BACKEND_RESULT: ${{ needs.backend.result }}
+          PYTHON_RESULT: ${{ needs.python.result }}
+          POSTGRES_RESULT: ${{ needs.postgres.result }}
+          OPENSEARCH_RESULT: ${{ needs.opensearch.result }}
+          DOCKER_RESULT: ${{ needs.docker-build.result }}
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          for result in \
+            "${REPOSITORY_RESULT}" \
+            "${FRONTEND_RESULT}" \
+            "${BACKEND_RESULT}" \
+            "${PYTHON_RESULT}" \
+            "${POSTGRES_RESULT}" \
+            "${OPENSEARCH_RESULT}" \
+            "${DOCKER_RESULT}"; do
+            [[ "${result}" == "success" ]] || exit 1
+          done
