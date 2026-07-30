@@ -474,9 +474,3 @@ chmod +x "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
 bash "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
 
 
-
-
-
-
-# chmod +x "./opensearch/apply_schema_nginx.sh"
-# bash "./opensearch/apply_schema_nginx.sh"

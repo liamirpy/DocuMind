@@ -40,6 +40,13 @@ include:
 
 
 
+ # ---------------------------------------------------
+  # Backend
+  # ---------------------------------------------------
+  - path: ./backend-api/docker-compose.yml
+    project_directory: ./backend-api
+
+
 
 services:
 
@@ -90,108 +97,108 @@ services:
     restart: unless-stopped
 
 
-  # ---------------------------------------------------
-  # Express API
-  # ---------------------------------------------------
-  api:
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  # # ---------------------------------------------------
+  # # Express API
+  # # ---------------------------------------------------
+  # api:
+  #   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
-    build:
-      context: ./backend-api
-      dockerfile: Dockerfile
+  #   build:
+  #     context: ./backend-api
+  #     dockerfile: Dockerfile
 
-    restart: unless-stopped
+  #   restart: unless-stopped
 
-    env_file:
-      - ./backend-api/.env
+  #   env_file:
+  #     - ./backend-api/.env
 
-    environment:
-      NODE_ENV: development
-
-
-    expose:
-      - "3000"
-
-    volumes:
-      - ./backend-api:/app
-      - backend_node_modules:/app/node_modules
-      - ./data/users:/data/users
-
-    command: npm run dev
-
-    depends_on:
-      pgbouncer:
-        condition: service_started
-
-      redis:
-        condition: service_healthy
-
-      agent-load-balancer:
-        condition: service_healthy
-
-      # opensearch:
-      #   condition: service_healthy
-
-    networks:
-      - backend_network
-
-      # - application_network
-      # - documind
-      # - default
+  #   environment:
+  #     NODE_ENV: development
 
 
-  # ---------------------------------------------------
-  # Document-processing worker
-  # ---------------------------------------------------
-  document-worker:
-    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+  #   expose:
+  #     - "3000"
 
-    build:
-      context: ./backend-api
-      dockerfile: Dockerfile
+  #   volumes:
+  #     - ./backend-api:/app
+  #     - backend_node_modules:/app/node_modules
+  #     - ./data/users:/data/users
 
-    restart: unless-stopped
+  #   command: npm run dev
 
-    env_file:
-      - ./backend-api/.env
+  #   depends_on:
+  #     pgbouncer:
+  #       condition: service_started
 
-    environment:
-      NODE_ENV: development
+  #     redis:
+  #       condition: service_healthy
 
-    volumes:
-      - ./backend-api:/app
-      - backend_node_modules:/app/node_modules
-      - ./data/users:/data/users
+  #     agent-load-balancer:
+  #       condition: service_healthy
 
-    command: npm run worker:documents
+  #     # opensearch:
+  #     #   condition: service_healthy
 
-    depends_on:
-      redis:
-        condition: service_healthy
+  #   networks:
+  #     - backend_network
 
-      pgbouncer:
-        condition: service_started
+  #     # - application_network
+  #     # - documind
+  #     # - default
 
-      agent-api:
-        condition: service_healthy
 
-      agent-load-balancer:
-        condition: service_healthy
+  # # ---------------------------------------------------
+  # # Document-processing worker
+  # # ---------------------------------------------------
+  # document-worker:
+  #   user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
 
-      # opensearch:
-      #   condition: service_healthy
+  #   build:
+  #     context: ./backend-api
+  #     dockerfile: Dockerfile
 
-    networks:
-      # PaperMind and indexer included services use
-      # the default Compose network.
-      # - default
-      - backend_network
+  #   restart: unless-stopped
 
-      # Redis
-      # - application_network
+  #   env_file:
+  #     - ./backend-api/.env
 
-      # PostgreSQL/PgBouncer
-      # - documind
+  #   environment:
+  #     NODE_ENV: development
+
+  #   volumes:
+  #     - ./backend-api:/app
+  #     - backend_node_modules:/app/node_modules
+  #     - ./data/users:/data/users
+
+  #   command: npm run worker:documents
+
+  #   depends_on:
+  #     redis:
+  #       condition: service_healthy
+
+  #     pgbouncer:
+  #       condition: service_started
+
+  #     agent-api:
+  #       condition: service_healthy
+
+  #     agent-load-balancer:
+  #       condition: service_healthy
+
+  #     # opensearch:
+  #     #   condition: service_healthy
+
+  #   networks:
+  #     # PaperMind and indexer included services use
+  #     # the default Compose network.
+  #     # - default
+  #     - backend_network
+
+  #     # Redis
+  #     # - application_network
+
+  #     # PostgreSQL/PgBouncer
+  #     # - documind
 
 
   # ---------------------------------------------------

@@ -1,21 +1,49 @@
+x-backend-common: &backend-common
+  image: documind/backend-api:${BACKEND_IMAGE_TAG:-local}
+
+  build:
+    context: .
+    dockerfile: Dockerfile
+    target: runtime
+
+  env_file:
+    - ./.env
+
+  environment:
+    NODE_ENV: production
+    PORT: "3000"
+
+  init: true
+  restart: unless-stopped
+
+  volumes:
+    - ../data/users:/data/users
+
+  networks:
+    - backend_network
+
+
 services:
-  app:
-    build: .
-    ports:
-      - "3000:3000"
+  api:
+    <<: *backend-common
 
-    volumes:
-      - .:/app
-      - node_modules:/app/node_modules
+    command:
+      - npm
+      - start
 
-    env_file:
-      - .env
+    expose:
+      - "3000"
 
-    environment:
-      NODE_ENV: development
-      CHOKIDAR_USEPOLLING: "true"
 
-    command: npm run dev
+  document-worker:
+    <<: *backend-common
 
-volumes:
-  node_modules:
+    command:
+      - npm
+      - run
+      - worker:documents
+
+    healthcheck:
+      disable: true
+
+    stop_grace_period: 30s
