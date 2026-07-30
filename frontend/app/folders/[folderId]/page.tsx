@@ -49,10 +49,10 @@ export default function FolderDetailPage() {
   const [notice, setNotice] = useState("");
 
   const loadFolder = useCallback(async () => {
-    setLoading(true);
-    setError("");
     try {
-      setData(await getFolder(folderId));
+      const nextData = await getFolder(folderId);
+      setData(nextData);
+      setError("");
     } catch (requestError) {
       setError(requestError instanceof Error ? requestError.message : "Could not load this folder.");
     } finally {

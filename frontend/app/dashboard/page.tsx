@@ -58,21 +58,39 @@ function DashboardContent() {
 
   const [folders, setFolders] = useState<Folder[]>([]);
   const [documents, setDocuments] = useState<Document[]>([]);
-  const [scope, setScope] = useState<ChatScope>({ type: "all" });
+  const scopeRequestKey = requestedDocumentId
+    ? `document:${requestedDocumentId}`
+    : requestedFolderId
+      ? `folder:${requestedFolderId}`
+      : "all";
+  const [scopeSelection, setScopeSelection] = useState<{
+    requestKey: string;
+    scope: ChatScope;
+  } | null>(null);
   const [scopeOpen, setScopeOpen] = useState(false);
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loadingLibrary, setLoadingLibrary] = useState(true);
-  const [loadingConversation, setLoadingConversation] = useState(false);
+  const [loadingConversation, setLoadingConversation] = useState(
+    Boolean(requestedConversationId),
+  );
+  const [previousRequestedConversationId, setPreviousRequestedConversationId] =
+    useState(requestedConversationId);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
   const [activeSource, setActiveSource] = useState<RagSource | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const refreshLibrary = useCallback(async (showLoader = false) => {
-    if (showLoader) setLoadingLibrary(true);
+  if (previousRequestedConversationId !== requestedConversationId) {
+    setPreviousRequestedConversationId(requestedConversationId);
+    setConversation(null);
+    setMessages([]);
+    setLoadingConversation(Boolean(requestedConversationId));
+    setError("");
+  }
 
+  const refreshLibrary = useCallback(async (showLoader = false) => {
     try {
       const [folderRows, documentRows] = await Promise.all([
         listFolders(),
@@ -111,54 +129,46 @@ function DashboardContent() {
     return () => window.clearInterval(timer);
   }, [hasProcessingDocuments, refreshLibrary]);
 
-  useEffect(() => {
-    if (loadingLibrary) return;
-
+  const requestedScope = useMemo<ChatScope>(() => {
     if (requestedDocumentId) {
       const document = documents.find(
         (item) => item.id === requestedDocumentId,
       );
+
       if (document) {
-        setScope({
+        return {
           type: "document",
           documentId: document.id,
           label: document.original_filename,
-        });
+        };
       }
-      return;
     }
 
     if (requestedFolderId) {
       const folder = folders.find((item) => item.id === requestedFolderId);
+
       if (folder) {
-        setScope({ type: "folder", folderId: folder.id, label: folder.name });
+        return { type: "folder", folderId: folder.id, label: folder.name };
       }
-      return;
     }
 
-    setScope({ type: "all" });
-  }, [
-    documents,
-    folders,
-    loadingLibrary,
-    requestedDocumentId,
-    requestedFolderId,
-  ]);
+    return { type: "all" };
+  }, [documents, folders, requestedDocumentId, requestedFolderId]);
+
+  const scope =
+    scopeSelection?.requestKey === scopeRequestKey
+      ? scopeSelection.scope
+      : requestedScope;
+
+  function selectScope(nextScope: ChatScope) {
+    setScopeSelection({ requestKey: scopeRequestKey, scope: nextScope });
+    setScopeOpen(false);
+  }
 
   useEffect(() => {
+    if (!requestedConversationId) return;
+
     let active = true;
-
-    if (!requestedConversationId) {
-      setConversation(null);
-      setMessages([]);
-      setLoadingConversation(false);
-      return () => {
-        active = false;
-      };
-    }
-
-    setLoadingConversation(true);
-    setError("");
 
     getConversation(requestedConversationId)
       .then((detail) => {
@@ -312,10 +322,7 @@ function DashboardContent() {
               <div className="scope-menu">
                 <button
                   className={scope.type === "all" ? "is-selected" : ""}
-                  onClick={() => {
-                    setScope({ type: "all" });
-                    setScopeOpen(false);
-                  }}
+                  onClick={() => selectScope({ type: "all" })}
                   type="button"
                 >
                   <FileIcon />
@@ -334,14 +341,13 @@ function DashboardContent() {
                         : ""
                     }
                     key={document.id}
-                    onClick={() => {
-                      setScope({
+                    onClick={() =>
+                      selectScope({
                         type: "document",
                         documentId: document.id,
                         label: document.original_filename,
-                      });
-                      setScopeOpen(false);
-                    }}
+                      })
+                    }
                     type="button"
                   >
                     <FileIcon />
@@ -360,14 +366,13 @@ function DashboardContent() {
                         : ""
                     }
                     key={folder.id}
-                    onClick={() => {
-                      setScope({
+                    onClick={() =>
+                      selectScope({
                         type: "folder",
                         folderId: folder.id,
                         label: folder.name,
-                      });
-                      setScopeOpen(false);
-                    }}
+                      })
+                    }
                     type="button"
                   >
                     <FolderIcon />

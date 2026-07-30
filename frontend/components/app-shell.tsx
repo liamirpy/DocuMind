@@ -44,23 +44,32 @@ export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, status, logout } = useAuth();
-  const [mobileOpen, setMobileOpen] = useState(false);
+  const [mobileMenu, setMobileMenu] = useState({ pathname, open: false });
   const [loggingOut, setLoggingOut] = useState(false);
   const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [loadingConversations, setLoadingConversations] = useState(true);
+
+  const mobileOpen = mobileMenu.pathname === pathname && mobileMenu.open;
+
+  function openMobileMenu() {
+    setMobileMenu({ pathname, open: true });
+  }
+
+  function closeMobileMenu() {
+    setMobileMenu({ pathname, open: false });
+  }
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [router, status]);
 
-  useEffect(() => setMobileOpen(false), [pathname]);
 
   const refreshConversations = useCallback(async () => {
     if (status !== "authenticated") return;
 
-    setLoadingConversations(true);
     try {
-      setConversations(await listConversations());
+      const rows = await listConversations();
+      setConversations(rows);
     } catch {
       // Conversation history is helpful but should never block the workspace.
     } finally {
@@ -143,7 +152,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       <button
         aria-label="Open navigation"
         className="mobile-menu-button"
-        onClick={() => setMobileOpen(true)}
+        onClick={openMobileMenu}
         type="button"
       >
         <MenuIcon />
@@ -153,7 +162,7 @@ export function AppShell({ children }: { children: ReactNode }) {
         <button
           aria-label="Close navigation"
           className="sidebar-scrim"
-          onClick={() => setMobileOpen(false)}
+          onClick={closeMobileMenu}
           type="button"
         />
       )}
@@ -164,7 +173,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <button
             aria-label="Close navigation"
             className="icon-button sidebar-close"
-            onClick={() => setMobileOpen(false)}
+            onClick={closeMobileMenu}
             type="button"
           >
             <CloseIcon />
