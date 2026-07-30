@@ -116,15 +116,7 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          cp .env.example .env
-          cp postgreSQL/.env.example postgreSQL/.env
-          cp indexer/.env.example indexer/.env
-          cp ingester/.env.example ingester/.env
-          cp paperMind/.env.example paperMind/.env
-          cp paperMind/agent/.env.example paperMind/agent/.env
-          cp paperMind/tools/.env.example paperMind/tools/.env
-          cp backend-api/.env.example backend-api/.env
-          cp frontend/.env.example frontend/.env.local
+
 
           sed -i "s|^DATA_DIR=.*|DATA_DIR=${RUNNER_TEMP}/documind-postgres|" postgreSQL/.env
           sed -i "s|^HOST_ACCESS_ROOT=.*|HOST_ACCESS_ROOT=${RUNNER_TEMP}/documind-data|" paperMind/.env
