@@ -61,8 +61,30 @@ export default function FolderDetailPage() {
   }, [folderId]);
 
   useEffect(() => {
-    void loadFolder();
-  }, [loadFolder]);
+    let active = true;
+
+    void getFolder(folderId)
+      .then((nextData) => {
+        if (!active) return;
+        setData(nextData);
+        setError("");
+      })
+      .catch((requestError: unknown) => {
+        if (!active) return;
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not load this folder.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [folderId]);
 
   const hasProcessingDocuments = data?.documents.some((document) =>
     ["uploaded", "queued", "processing"].includes(document.status),

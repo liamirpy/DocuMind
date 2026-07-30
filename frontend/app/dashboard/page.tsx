@@ -112,8 +112,30 @@ function DashboardContent() {
   }, []);
 
   useEffect(() => {
-    void refreshLibrary(true);
-  }, [refreshLibrary]);
+    let active = true;
+
+    void Promise.all([listFolders(), listDocuments()])
+      .then(([folderRows, documentRows]) => {
+        if (!active) return;
+        setFolders(folderRows);
+        setDocuments(documentRows);
+      })
+      .catch((requestError: unknown) => {
+        if (!active) return;
+        setError(
+          requestError instanceof Error
+            ? requestError.message
+            : "Could not load your library.",
+        );
+      })
+      .finally(() => {
+        if (active) setLoadingLibrary(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const hasProcessingDocuments = documents.some((document) =>
     ["uploaded", "queued", "processing"].includes(document.status),
