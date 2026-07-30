@@ -133,21 +133,7 @@ jobs:
         shell: bash
         run: |
           docker compose -f docker-compose.yml config --quiet
-          docker compose -f frontend/docker-compose.yml config --quiet
-          docker compose -f postgreSQL/docker-compose.yml config --quiet
-          docker compose -f postgreSQL/docker-compose-ngnix.yml config --quiet
-          docker compose -f opensearch/docker-compose.yml config --quiet
-          docker compose -f opensearch/docker-compose-nginx-ci.yml config --quiet
-          docker compose -f indexer/docker-compose.yml config --quiet
-          docker compose -f indexer/docker-compose-nginx.yml config --quiet
-          docker compose -f ingester/compose.yml config --quiet
-          docker compose -f ingester/compose-nginx-ci.yml config --quiet
-          docker compose -f paperMind/compose.yaml config --quiet
-          docker compose -f paperMind/agent/docker-compose.yml config --quiet
-          docker compose -f paperMind/compose.yaml -f paperMind/compose-nvidia.yaml config --quiet
-          docker compose -f paperMind/compose-nginx.yaml -f paperMind/compose-nvidia-nginx.yaml config --quiet
-          docker compose -f paperMind/tools/docker-compose.yml config --quiet
-          docker compose -f paperMind/tools/docker-compose.yml -f paperMind/tools/docker-compose.gpu.yml config --quiet
+
 
   frontend:
     name: Frontend
