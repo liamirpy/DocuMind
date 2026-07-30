@@ -47,7 +47,7 @@ export default function HomePage() {
             className="button button-primary"
             href={status === "authenticated" ? "/dashboard" : "/register"}
           >
-            {status === "authenticated" ? "Continue to dashboard" : "Start free"}
+            {status === "authenticated" ? "Continue to dashboard" : "Start Now"}
           </Link>
           {status === "unauthenticated" && (
             <Link className="button button-secondary" href="/login">
@@ -55,6 +55,10 @@ export default function HomePage() {
             </Link>
           )}
         </div>
+      <p className="developer-credit">
+          Developed by <strong style={{color:"green"}}>Amir Mousavi</strong>{" "}
+        </p>
+
       </section>
     </main>
   );

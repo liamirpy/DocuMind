@@ -340,6 +340,11 @@ export function PdfCitationViewer({
       return;
     }
 
+    // Capture the narrowed document for use inside the async function.
+    // React state can change between renders, so TypeScript does not keep
+    // the `pdf !== null` narrowing across the nested async boundary.
+    const currentPdf = pdf;
+
     let active = true;
     let localRenderTask: PdfRenderTaskLike | null = null;
 
@@ -350,7 +355,7 @@ export function PdfCitationViewer({
     async function renderPage(): Promise<void> {
       try {
         const page =
-          await pdf.getPage(pageNumber);
+          await currentPdf.getPage(pageNumber);
 
         if (!active) {
           return;

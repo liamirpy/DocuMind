@@ -1,0 +1,31 @@
+services:
+  frontend:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    image: documind-frontend:local
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3001"
+      HOSTNAME: 0.0.0.0
+      BACKEND_PROTOCOL: ${BACKEND_PROTOCOL:-http}
+      BACKEND_HOST: ${BACKEND_HOST:-host.docker.internal}
+      BACKEND_PORT: ${BACKEND_PORT:-8080}
+      ALLOWED_DEV_ORIGINS: ${ALLOWED_DEV_ORIGINS:-localhost,127.0.0.1}
+    ports:
+      - "${FRONTEND_PORT:-3001}:3001"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

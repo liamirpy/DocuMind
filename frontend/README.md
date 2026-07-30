@@ -82,3 +82,31 @@ Authorization: Bearer <access-token>
 No backend change is required for citations in a newly generated answer because the RAG response already contains `result.sources`.
 
 For permanent citation restoration on another device or browser, read `CITATION-BACKEND-NOTES.md`.
+
+## Docker deployment
+
+The repository root contains `docker-compose.yml` and `.env`.
+
+1. Set the backend connection in the root `.env` file:
+
+```dotenv
+BACKEND_HOST=host.docker.internal
+BACKEND_PORT=8080
+```
+
+2. Build and start the frontend from the repository root:
+
+```bash
+docker compose up --build -d
+```
+
+3. Open `http://localhost:3000`, or the port configured by `FRONTEND_PORT`.
+
+The browser sends requests to `/api`. The Next.js server proxies those requests
+to `BACKEND_PROTOCOL://BACKEND_HOST:BACKEND_PORT`, which keeps the backend
+address out of browser-side JavaScript and avoids cross-origin configuration.
+
+When the backend is another Docker Compose service, set `BACKEND_HOST` to that
+service name and attach both services to the same network. The default
+`host.docker.internal` value is intended for a backend running on the Docker
+host.

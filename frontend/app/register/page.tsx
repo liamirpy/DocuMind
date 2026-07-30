@@ -62,8 +62,8 @@ export default function RegisterPage() {
   return (
     <AuthShell
       eyebrow="Create your account"
-      title="Start your document workspace"
-      description="Create an account now. Folder and PDF tools will be added in the next milestone."
+      title="Start your workspace"
+      description=""
       footer={
         <p>
           Already have an account? <Link href="/login">Sign in</Link>
@@ -84,7 +84,7 @@ export default function RegisterPage() {
               autoComplete="given-name"
               name="first_name"
               onChange={(event) => setFirstName(event.target.value)}
-              placeholder="Jane"
+              placeholder="Amir"
               required
               value={firstName}
             />
@@ -96,7 +96,7 @@ export default function RegisterPage() {
               autoComplete="family-name"
               name="last_name"
               onChange={(event) => setLastName(event.target.value)}
-              placeholder="Doe"
+              placeholder="Mousavi"
               required
               value={lastName}
             />

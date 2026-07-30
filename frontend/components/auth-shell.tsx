@@ -26,7 +26,7 @@ export function AuthShell({
             or an entire folder from a single workspace.
           </p>
         </div>
-        <div className="story-card" aria-hidden="true">
+        {/* <div className="story-card" aria-hidden="true">
           <div className="story-card-top">
             <span className="story-dot" />
             Research / Q3 reports
@@ -38,7 +38,7 @@ export function AuthShell({
             I found three recurring risks: supplier concentration, regulatory
             delays, and foreign-exchange exposure.
           </div>
-        </div>
+        </div> */}
       </section>
 
       <section className="auth-panel">

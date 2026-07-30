@@ -224,6 +224,7 @@ input:focus-visible {
 .story-copy {
   max-width: 630px;
   margin: auto 0 3rem;
+  transform: translateY(-300px);
 }
 
 .story-copy .eyebrow {
