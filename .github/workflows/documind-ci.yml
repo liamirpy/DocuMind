@@ -232,13 +232,19 @@ jobs:
           DB_USER: documind
           DB_PASSWORD: ci-only-password
           DB_NAME: documind
+
+          # Required if application settings validate this variable.
+          PAPERMIND_CALLBACK_TOKEN: ci-only-papermind-callback-token
+          PAPERMIND_JOB_TTL_SECONDS: "86400"
+
         run: |
           set -Eeuo pipefail
+
+          timeout 30s node --env-file=.env --input-type=module <<'NODE'
           import {
             closePaperMindJobStore,
           } from "./src/services/papermindJobStore.js";
 
-          timeout 30s node --env-file=.env --input-type=module <<'NODE'
           let documentQueue;
           let redisClient;
 
@@ -246,34 +252,64 @@ jobs:
             await import("./src/app.js");
 
             ({
-              documentQueue
-            } = await import("./src/queues/documentQueue.js"));
+              documentQueue,
+            } = await import(
+              "./src/queues/documentQueue.js"
+            ));
 
             await documentQueue.waitUntilReady();
-            redisClient = await documentQueue.client;
 
-            console.log("Backend imports successfully");
-            console.log("Redis document queue is ready");
+            redisClient =
+              await documentQueue.client;
+
+            console.log(
+              "Backend imports successfully",
+            );
+
+            console.log(
+              "Redis document queue is ready",
+            );
           } finally {
+            /*
+            * Close the BullMQ Queue first.
+            */
             if (documentQueue) {
               await documentQueue.close();
             }
 
-            // documentQueue.js passes an externally created IORedis instance
-            // to BullMQ. Closing the Queue does not necessarily close that
-            // externally owned client, so terminate it explicitly.
-            if (redisClient && redisClient.status !== "end") {
+            /*
+            * documentQueue.js uses an externally created
+            * IORedis connection. Queue.close() may not close
+            * that externally owned connection.
+            */
+            if (
+              redisClient &&
+              redisClient.status !== "end"
+            ) {
               try {
                 await redisClient.quit();
               } catch (error) {
-                console.error("Graceful Redis shutdown failed:", error);
+                console.error(
+                  "Graceful queue Redis shutdown failed:",
+                  error,
+                );
+
                 redisClient.disconnect();
               }
             }
-          }
 
-          console.log("Backend smoke test shut down cleanly");
+            /*
+            * Close the separate Redis connection used by
+            * papermindJobStore.js.
+            */
+            await closePaperMindJobStore();
+
+            console.log(
+              "Backend smoke test shut down cleanly",
+            );
+          }
           NODE
+
 
   python:
     name: ${{ matrix.name }}
