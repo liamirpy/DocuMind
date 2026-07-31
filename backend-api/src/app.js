@@ -8,6 +8,8 @@ import documentRoutes from "./routes/documentRoutes.js";
 import ragRoutes from "./routes/ragRoutes.js"
 import conversationRoutes from "./routes/conversationRoutes.js";
 
+import internalPapermindRoutes from "./routes/internalPapermindRoutes.js";
+
 const app = express();
 
 app.use(cors({
@@ -36,6 +38,11 @@ app.use("/api/documents", documentRoutes);
 app.use("/api/rag", ragRoutes);
 app.use("/api/conversations", conversationRoutes);
 
+
+app.use(
+  "/internal/papermind/jobs",
+  internalPapermindRoutes,
+);
 
 app.use(errorMiddleware);
 

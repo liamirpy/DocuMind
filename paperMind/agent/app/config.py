@@ -2,7 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -20,10 +20,18 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = Field(default=100, gt=0, le=2000)
     max_concurrency: int = Field(default=1, gt=0, le=16)
 
+    # Backend-managed asynchronous job callbacks. The backend stores the
+    # canonical status in its shared Redis instance, so any agent replica can
+    # execute a job without requiring sticky load-balancer routing.
+    backend_callback_base_url: str = ""
+    backend_callback_token: SecretStr | None = None
+    backend_callback_timeout_seconds: float = Field(default=10.0, gt=0, le=120)
+    backend_callback_max_retries: int = Field(default=5, ge=1, le=20)
+
     tools_base_url: str = "http://host.docker.internal:8090"
     tools_extract_path: str = "/v1/extract"
     tools_ready_path: str = "/health/ready"
-    tools_timeout_seconds: float = Field(default=1800.0, gt=1)
+    tools_timeout_seconds: float = Field(default=3900.0, gt=1)
     tools_verify_tls: bool = True
 
     output_dir: Path = Path("/data/outputs")

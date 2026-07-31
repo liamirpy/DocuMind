@@ -22,3 +22,23 @@ def test_path_process_request_requires_non_empty_paths() -> None:
             input_filename="article.pdf",
             output_directory="/host/results",
         )
+
+
+def test_backend_managed_path_request_requires_backend_job_id() -> None:
+    from app.models import BackendManagedPathProcessRequest
+
+    request = BackendManagedPathProcessRequest(
+        backend_job_id="document-job-123",
+        input_directory="/host/papers",
+        input_filename="article.pdf",
+        output_directory="/host/results",
+    )
+    assert request.backend_job_id == "document-job-123"
+
+    with pytest.raises(ValidationError):
+        BackendManagedPathProcessRequest(
+            backend_job_id="contains spaces",
+            input_directory="/host/papers",
+            input_filename="article.pdf",
+            output_directory="/host/results",
+        )

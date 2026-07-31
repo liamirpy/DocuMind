@@ -2,10 +2,13 @@
 
 ## Start Docker once and process PDFs by filesystem path
 
-The Agent now provides two APIs:
+The Agent provides synchronous APIs for short documents and asynchronous job APIs for long documents:
 
-- `POST /v1/process` uploads a PDF through HTTP.
-- `POST /v1/process-path` reads an existing PDF from a mounted directory and writes the result to a selected mounted directory.
+- `POST /v1/process` uploads and processes a PDF synchronously.
+- `POST /v1/process-path` processes a mounted PDF synchronously.
+- `POST /v1/process-async` uploads a PDF and immediately returns a job ID.
+- `POST /v1/process-path-async` queues a mounted PDF and immediately returns a job ID.
+- `GET /v1/jobs/{job_id}` reports queued, running, completed, or failed status.
 
 Docker cannot see arbitrary host paths unless they are bind-mounted. Configure one host root once in `.env`:
 
@@ -37,6 +40,32 @@ Start the stack once:
 ```bash
 docker compose up -d --build
 ```
+
+For long PDFs, use the asynchronous path endpoint so the client or reverse proxy does not need to keep one request open during OCR, extraction, packaging, and LLM work:
+
+```bash
+curl \
+  --fail \
+  --show-error \
+  -X POST \
+  "http://127.0.0.1:5000/v1/process-path-async" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input_directory": "/host/pdf_example",
+    "input_filename": "RAX_NET.pdf",
+    "output_directory": "/host/pdf_analyser_output",
+    "output_folder": "Results_with_LLM",
+    "use_llm": true,
+    "overwrite": false
+  }'
+```
+
+Poll the returned `status_url`, or call `GET /v1/jobs/<job-id>`. Use the synchronous command below only when the whole operation is expected to finish within the caller's timeout.
+
+Large-file limits are independent of request timeouts. Increase `MAX_UPLOAD_SIZE_MB`
+for PDFs above the configured byte limit, and increase `DOCLING_MAX_NUM_PAGES` for
+documents above the configured page limit. Keep `TOOLS_TIMEOUT_SECONDS` greater
+than the Docling/GROBID timeout plus asset-export overhead.
 
 Then process any PDF below the mounted root without restarting Docker:
 
@@ -90,3 +119,28 @@ curl \
 ```bash
 bash ./scripts/install-nvidia.sh
 ```
+
+## Load-balanced backend-managed asynchronous jobs
+
+The `/v1/process-path-async` endpoint now accepts `backend_job_id`. PaperMind
+executes the job in the selected replica and sends authenticated lifecycle
+callbacks to the DocuMind backend. The backend stores status in shared Redis and
+its BullMQ worker polls Redis instead of PaperMind `/v1/jobs/{job_id}`.
+
+This permits multiple `agent-api` replicas behind Nginx without sticky sessions:
+
+```bash
+docker compose up -d --scale agent-api=3
+```
+
+Configure:
+
+```dotenv
+BACKEND_CALLBACK_BASE_URL=http://api:3000/internal/papermind/jobs
+PAPERMIND_CALLBACK_TOKEN=replace-with-a-long-random-secret
+BACKEND_CALLBACK_TIMEOUT_SECONDS=10
+BACKEND_CALLBACK_MAX_RETRIES=5
+```
+
+The same callback token must be configured in `backend-api/.env`. See
+`BACKEND_MANAGED_JOBS.md` and the accompanying backend integration package.

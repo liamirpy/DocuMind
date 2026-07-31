@@ -1,48 +1,57 @@
-import IORedis from "ioredis";
+import 'dotenv/config';
+import IORedis from 'ioredis';
 
-const redisUrl = `redis://${process.env.REDIS_HOST}:${process.env.REDIS_PORT}` || 'redis://127.0.0.1:6379';
-// const redisUrl =  'redis://127.0.0.1:6379';
+const configuredRedisUrl = process.env.REDIS_URL?.trim();
+const redisHost = process.env.REDIS_HOST?.trim() || '127.0.0.1';
+const redisPort = process.env.REDIS_PORT?.trim() || '6379';
+const redisUrl = configuredRedisUrl || `redis://${redisHost}:${redisPort}`;
 
-console.log(redisUrl)
+function addConnectionLogging(connection, connectionName) {
+  connection.on('connect', () => {
+    console.log(`[Redis:${connectionName}] Connected`);
+  });
 
-function addConnectionLogging(connection,connectionName){
-    connection.on('connect',()=>{
-        console.log(`[Redis:${connectionName} Connected]`)
-    });
+  connection.on('ready', () => {
+    console.log(`[Redis:${connectionName}] Ready`);
+  });
 
-    connection.on('ready',()=>{
-        console.log(`[Redis:${connectionName}] Ready`)
-    });
+  connection.on('error', (error) => {
+    console.error(`[Redis:${connectionName}] Error:`, error.message);
+  });
 
-    connection.on('error',(error)=> {
-        console.log(`[Redis:${connectionName}] Error:`, error.message)
+  connection.on('close', () => {
+    console.warn(`[Redis:${connectionName}] Connection closed`);
+  });
 
-    });
-
-    connection.on('close',()=>{
-        console.warn(`[Redis:${connectionName}] Connection closed`)
-    });
-
-
-    return connection;
-
+  return connection;
 }
 
-
-export function createProducerRedisConnection(){
-    const connection= new IORedis(redisUrl,{
-        maxRetriesPerRequest:1, 
-        enableReadyCheck: true
-    });
-    return addConnectionLogging(connection,'producer')
+export function createProducerRedisConnection() {
+  return addConnectionLogging(
+    new IORedis(redisUrl, {
+      maxRetriesPerRequest: 1,
+      enableReadyCheck: true,
+    }),
+    'producer',
+  );
 }
 
+export function createWorkerRedisConnection() {
+  return addConnectionLogging(
+    new IORedis(redisUrl, {
+      maxRetriesPerRequest: null,
+      enableReadyCheck: true,
+    }),
+    'worker',
+  );
+}
 
-export function createWorkerRedisConnection(){
-    const connection= new IORedis(redisUrl,{
-        maxRetriesPerRequest: null,
-        enableReadyCheck: true
-    });
-
-    return addConnectionLogging(connection,'Worker')
+export function createStateRedisConnection() {
+  return addConnectionLogging(
+    new IORedis(redisUrl, {
+      maxRetriesPerRequest: 3,
+      enableReadyCheck: true,
+    }),
+    'papermind-state',
+  );
 }

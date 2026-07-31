@@ -319,6 +319,47 @@ curl --fail --show-error \
   -o agent-result.json
 ```
 
+### Recommended for long PDFs: asynchronous processing
+
+The synchronous `/v1/process` endpoint remains available, but long OCR, table,
+asset-export, or LLM runs can outlive a browser or reverse-proxy request timeout.
+Use `/v1/process-async` for large documents:
+
+```bash
+curl --fail --show-error \
+  -X POST http://localhost:8100/v1/process-async \
+  -F "file=@/absolute/path/large-article.pdf;type=application/pdf" \
+  -F "use_llm=false"
+```
+
+The API returns HTTP 202 immediately with a `job_id`, `document_id`, and
+`status_url`. Poll the status URL until `status` is `completed` or `failed`:
+
+```bash
+curl -fsS http://localhost:8100/v1/jobs/<job-id> | jq
+```
+
+Large-file limits are independent of request timeouts. Increase `MAX_UPLOAD_SIZE_MB`
+for PDFs above the configured byte limit, and increase `DOCLING_MAX_NUM_PAGES` for
+documents above the configured page limit. Keep `TOOLS_TIMEOUT_SECONDS` greater
+than the Docling/GROBID timeout plus asset-export overhead.
+
+For very large files already on the same host, combine mounted-path processing
+with the asynchronous endpoint so neither upload time nor processing time is held
+inside one external HTTP request:
+
+```bash
+curl --fail --show-error \
+  -X POST http://localhost:8100/v1/process-path-async \
+  -H "Content-Type: application/json" \
+  -d '{
+    "input_directory": "/host/papers",
+    "input_filename": "large-article.pdf",
+    "output_directory": "/data/outputs",
+    "use_llm": false
+  }'
+```
+
 The response includes:
 
 - document ID;
@@ -516,7 +557,7 @@ Important variables:
 | Variable | Default | Purpose |
 |---|---:|---|
 | `TOOLS_BASE_URL` | `http://host.docker.internal:8090` | Existing extraction API |
-| `TOOLS_TIMEOUT_SECONDS` | `1800` | Maximum tools request time |
+| `TOOLS_TIMEOUT_SECONDS` | `3900` | Maximum tools request time; must exceed extractor timeouts plus export overhead |
 | `OUTPUT_HOST_DIR` | `./data/outputs` | Host output directory |
 | `FORMULA_CROP_SCALE` | `3.0` | Formula crop rendering scale |
 | `LLM_ENABLED` | `false` | Enables Ollama calls in the service |

@@ -188,6 +188,14 @@ async def save_upload_to_temp(
     return path, digest.hexdigest(), size
 
 
+def sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def copy_stream_and_hash(
     source: BinaryIO,
     destination: Path,

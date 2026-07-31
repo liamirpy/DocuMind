@@ -1,5 +1,6 @@
 import logging
 import re
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Annotated, Any
@@ -8,8 +9,16 @@ from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile, sta
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.backend_callback import BackendCallbackClient
 from app.config import get_settings
-from app.models import PathProcessRequest, ProcessResponse
+from app.jobs import JobManager
+from app.models import (
+    BackendManagedPathProcessRequest,
+    JobAcceptedResponse,
+    JobStatusResponse,
+    PathProcessRequest,
+    ProcessResponse,
+)
 from app.pipeline import AgentPipeline
 from app.utils import (
     join_url,
@@ -19,6 +28,7 @@ from app.utils import (
     safe_filename,
     safe_output_folder,
     save_upload_to_temp,
+    sha256_file,
     validate_output_folder,
 )
 
@@ -52,6 +62,22 @@ def _normalise_output_folder(output_folder: str | None) -> str | None:
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),
         ) from exc
+
+
+async def _save_pdf_upload(file: UploadFile) -> tuple[Path, str, int]:
+    try:
+        return await save_upload_to_temp(
+            file,
+            max_bytes=settings.max_upload_size_bytes,
+        )
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = (
+            status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+            if "exceeds" in detail.lower()
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=detail) from exc
 
 
 def _resolve_selected_output_directory(output_directory: str | None) -> Path | None:
@@ -161,7 +187,11 @@ async def _run_pipeline(
 async def lifespan(app: FastAPI):
     settings.output_dir.mkdir(parents=True, exist_ok=True)
     app.state.pipeline = AgentPipeline(settings)
+    app.state.jobs = JobManager()
+    app.state.backend_callback = BackendCallbackClient(settings)
     yield
+    await app.state.jobs.close()
+    await app.state.backend_callback.close()
     await app.state.pipeline.close()
 
 
@@ -249,10 +279,7 @@ async def process_pdf(
 
     temp_path: Path | None = None
     try:
-        temp_path, _sha256, _size = await save_upload_to_temp(
-            file,
-            max_bytes=settings.max_upload_size_bytes,
-        )
+        temp_path, _sha256, _size = await _save_pdf_upload(file)
         return await _run_pipeline(
             request,
             pdf_path=temp_path,
@@ -265,6 +292,158 @@ async def process_pdf(
     finally:
         if temp_path is not None:
             temp_path.unlink(missing_ok=True)
+
+
+@app.post(
+    "/v1/process-async",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def process_pdf_async(
+    request: Request,
+    file: Annotated[UploadFile, File(description="Scientific article PDF")],
+    use_llm: Annotated[bool, Form()] = False,
+    output_folder: Annotated[str | None, Form()] = None,
+    output_directory: Annotated[str | None, Form()] = None,
+    overwrite: Annotated[bool | None, Form()] = None,
+) -> JobAcceptedResponse:
+    """Queue a PDF and return immediately instead of holding a long HTTP request open."""
+
+    filename = safe_filename(file.filename)
+    if Path(filename).suffix.lower() != ".pdf":
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+            detail="Only PDF uploads are supported.",
+        )
+
+    normalized_output_folder = _normalise_output_folder(output_folder)
+    resolved_output_directory = _resolve_selected_output_directory(output_directory)
+    temp_path, sha256, _size = await _save_pdf_upload(file)
+
+    async def runner() -> ProcessResponse:
+        result = await request.app.state.pipeline.process(
+            pdf_path=temp_path,
+            filename=filename,
+            use_llm=use_llm,
+            output_folder=normalized_output_folder,
+            output_directory=resolved_output_directory,
+            overwrite=overwrite,
+        )
+        return _build_process_response(result)
+
+    def cleanup() -> None:
+        temp_path.unlink(missing_ok=True)
+
+    try:
+        job = request.app.state.jobs.submit(
+            filename=filename,
+            document_id=sha256,
+            runner=runner,
+            cleanup=cleanup,
+        )
+    except Exception:
+        temp_path.unlink(missing_ok=True)
+        raise
+
+    status_url = str(request.url_for("get_job_status", job_id=job.job_id))
+    return JobAcceptedResponse(
+        job_id=job.job_id,
+        document_id=job.document_id,
+        filename=job.filename,
+        status_url=status_url,
+    )
+
+
+@app.get("/v1/jobs/{job_id}", response_model=JobStatusResponse)
+async def get_job_status(request: Request, job_id: str) -> JobStatusResponse:
+    job = request.app.state.jobs.get(job_id)
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Job not found.")
+    status_url = str(request.url_for("get_job_status", job_id=job.job_id))
+    return JobStatusResponse.model_validate(job.as_dict(status_url=status_url))
+
+
+@app.post(
+    "/v1/process-path-async",
+    response_model=JobAcceptedResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def process_pdf_from_path_async(
+    request: Request,
+    payload: BackendManagedPathProcessRequest,
+) -> JobAcceptedResponse:
+    """Queue a mounted PDF and report status to backend-managed Redis.
+
+    The backend supplies a correlation ID. This agent keeps a local diagnostic
+    record, but the DocuMind backend callback record is the shared source of
+    truth, allowing this endpoint to be safely load-balanced across replicas.
+    """
+
+    if not settings.path_api_enabled:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Path-based processing is disabled by PATH_API_ENABLED.",
+        )
+
+    callback = request.app.state.backend_callback
+    if not callback.enabled:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=(
+                "Backend callback is not configured. Set "
+                "BACKEND_CALLBACK_BASE_URL and BACKEND_CALLBACK_TOKEN."
+            ),
+        )
+
+    try:
+        input_path = resolve_input_pdf(
+            payload.input_directory,
+            payload.input_filename,
+            allowed_roots=_allowed_input_roots(),
+            max_bytes=settings.max_upload_size_bytes,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
+
+    normalized_output_folder = _normalise_output_folder(payload.output_folder)
+    resolved_output_directory = _resolve_selected_output_directory(payload.output_directory)
+    document_id = sha256_file(input_path)
+    agent_job_id = str(uuid.uuid4())
+
+    async def runner() -> ProcessResponse:
+        result = await request.app.state.pipeline.process(
+            pdf_path=input_path,
+            filename=input_path.name,
+            use_llm=payload.use_llm,
+            output_folder=normalized_output_folder,
+            output_directory=resolved_output_directory,
+            overwrite=payload.overwrite,
+        )
+        return _build_process_response(result)
+
+    async def report_status(record) -> None:
+        await callback.report_record(
+            backend_job_id=payload.backend_job_id,
+            record=record,
+        )
+
+    job = request.app.state.jobs.submit(
+        job_id=agent_job_id,
+        filename=input_path.name,
+        document_id=document_id,
+        runner=runner,
+        on_status=report_status,
+    )
+    status_url = str(request.url_for("get_job_status", job_id=job.job_id))
+    return JobAcceptedResponse(
+        job_id=job.job_id,
+        document_id=job.document_id,
+        filename=job.filename,
+        status_url=status_url,
+    )
 
 
 @app.post("/v1/process-path", response_model=ProcessResponse)

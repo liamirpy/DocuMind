@@ -725,7 +725,7 @@ Edit `.env` rather than changing Compose files.
 | `DOCLING_PRELOAD_ON_STARTUP` | `true` | Load converter during startup |
 | `DOCLING_MAX_NUM_PAGES` | `300` | Maximum processed pages |
 | `DOCLING_MAX_CONCURRENCY` | `1` | Concurrent Docling conversions in one container |
-| `DOCLING_DOCUMENT_TIMEOUT_SECONDS` | `1800` | Docling document timeout |
+| `DOCLING_DOCUMENT_TIMEOUT_SECONDS` | `3600` | Docling document timeout |
 | `DOCLING_ACCELERATOR_DEVICE` | `cpu` | `cpu`, `auto`, `cuda`, or `cuda:N` |
 | `DOCLING_ACCELERATOR_NUM_THREADS` | `4` | CPU inference threads |
 | `DOCLING_OCR_BACKEND` | `onnxruntime` | `onnxruntime` or `torch` |
@@ -748,7 +748,7 @@ Edit `.env` rather than changing Compose files.
 |---|---:|---|
 | `GROBID_PORT` | `8086` | Host GROBID service port |
 | `GROBID_ADMIN_PORT` | `8085` | Host GROBID admin port |
-| `GROBID_TIMEOUT_SECONDS` | `300` | Timeout per GROBID request |
+| `GROBID_TIMEOUT_SECONDS` | `1800` | Timeout per GROBID request |
 | `GROBID_MAX_RETRIES` | `2` | Maximum request attempts |
 | `GROBID_TEI_COORDINATES` | comma-separated list | TEI elements receiving PDF coordinates |
 

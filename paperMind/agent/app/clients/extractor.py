@@ -12,7 +12,12 @@ class ExtractorClient:
         self.settings = settings
         self._client = httpx.AsyncClient(
             base_url=settings.tools_base_url.rstrip("/"),
-            timeout=httpx.Timeout(settings.tools_timeout_seconds),
+            timeout=httpx.Timeout(
+                connect=30.0,
+                read=settings.tools_timeout_seconds,
+                write=settings.tools_timeout_seconds,
+                pool=60.0,
+            ),
             verify=settings.tools_verify_tls,
             follow_redirects=True,
         )
@@ -22,7 +27,7 @@ class ExtractorClient:
 
     async def is_ready(self) -> bool:
         try:
-            response = await self._client.get(self.settings.tools_ready_path)
+            response = await self._client.get(self.settings.tools_ready_path, timeout=20.0)
             return response.status_code == 200
         except httpx.HTTPError:
             return False
@@ -45,14 +50,30 @@ class ExtractorClient:
             "grobid_include_raw_affiliations": "true",
             "grobid_segment_sentences": "true",
         }
-        with pdf_path.open("rb") as file_handle:
-            files = {"file": (filename, file_handle, "application/pdf")}
-            response = await self._client.post(
-                self.settings.tools_extract_path,
-                data=data,
-                files=files,
-            )
-        response.raise_for_status()
+        try:
+            with pdf_path.open("rb") as file_handle:
+                files = {"file": (filename, file_handle, "application/pdf")}
+                response = await self._client.post(
+                    self.settings.tools_extract_path,
+                    data=data,
+                    files=files,
+                )
+            response.raise_for_status()
+        except httpx.TimeoutException as exc:
+            raise RuntimeError(
+                "The extractor exceeded TOOLS_TIMEOUT_SECONDS "
+                f"({self.settings.tools_timeout_seconds:g}s). Keep this value above the "
+                "Docling/GROBID timeout plus export overhead."
+            ) from exc
+        except httpx.HTTPStatusError as exc:
+            try:
+                detail = exc.response.json().get("detail", exc.response.text)
+            except ValueError:
+                detail = exc.response.text
+            detail_text = str(detail).strip()[:2000]
+            raise RuntimeError(
+                f"Extractor returned HTTP {exc.response.status_code}: {detail_text}"
+            ) from exc
         payload = response.json()
         if not isinstance(payload, dict):
             raise ValueError("Extractor response is not a JSON object.")

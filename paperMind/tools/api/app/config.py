@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     assets_url_prefix: str = "/assets"
 
     grobid_base_url: str = "http://grobid:8070"
-    grobid_timeout_seconds: float = Field(default=300.0, gt=0)
+    grobid_timeout_seconds: float = Field(default=1800.0, gt=0)
     grobid_max_retries: int = Field(default=2, ge=1, le=10)
     grobid_tei_coordinates: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: [
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
     docling_preload_on_startup: bool = True
     docling_max_num_pages: int = Field(default=300, gt=0)
     docling_max_concurrency: int = Field(default=1, gt=0, le=8)
-    docling_document_timeout_seconds: float = Field(default=1800.0, gt=0)
+    docling_document_timeout_seconds: float = Field(default=3600.0, gt=0)
     docling_accelerator_device: str = "cpu"
     docling_accelerator_num_threads: int = Field(default=4, gt=0, le=64)
 

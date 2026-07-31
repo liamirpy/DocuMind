@@ -455,22 +455,69 @@ echo "Validating Compose configuration..."
 
 
 
+echo "Building application images..."
+
+"${DOCKER[@]}" compose build \
+  --pull \
+  --no-cache \
+  document-worker \
+  agent-api \
+  indexer-api \
+  ingester-api
+
+echo "Starting application services..."
+
+"${DOCKER[@]}" compose up -d \
+  --force-recreate \
+  --remove-orphans \
+  --scale document-worker=3 \
+  --scale agent-api=3 \
+  --scale indexer-api=1 \
+  --scale ingester-api=2
 
 
-"${DOCKER[@]}" compose up -d 
+
+# chmod +x "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
+# bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
 
 
 
 
 
-chmod +x "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
-bash "$ROOT_DIR/postgreSQL/apply_schema_nginx.sh"
+# chmod +x "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
+# bash "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
 
 
 
 
 
-chmod +x "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
-bash "$ROOT_DIR/opensearch/apply_schema_nginx.sh"
+
+# for container in $(sudo docker compose ps -q document-worker); do
+#   name="$(docker inspect --format '{{.Name}}' "$container")"
+
+#   echo
+#   echo "===== ${name} ====="
+
+#   echo "Environment:"
+#   sudo docker exec "$container" sh -lc \
+#     'echo "PROCESSOR_TIMEOUT_MS=${PROCESSOR_TIMEOUT_MS:-<unset>}"'
+
+#   echo "Image:"
+#   sudo docker inspect "$container" \
+#     --format 'Image={{.Image}} Created={{.Created}}'
+# done
 
 
+
+# for container in $(sudo docker compose ps -q document-worker); do
+#   name="$(sudo docker inspect --format '{{.Name}}' "$container")"
+
+#   echo
+#   echo "===== ${name} ====="
+
+#   sudo docker exec "$container" sh -lc '
+#     grep -RIn \
+#       "PROCESSOR_TIMEOUT_MS\|600000" \
+#       /app/src /usr/src/app/src 2>/dev/null || true
+#   '
+# done

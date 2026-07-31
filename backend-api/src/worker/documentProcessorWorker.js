@@ -11,6 +11,14 @@ import {
     createWorkerRedisConnection
 } from '../queues/redisConnection.js';
 
+import {
+    closePaperMindJobStore,
+    createPaperMindJob,
+    getPaperMindJob,
+    resetPaperMindJob,
+    updatePaperMindJob
+} from '../services/papermindJobStore.js';
+
 const QUEUE_NAME = 'document-processing';
 
 /*
@@ -46,19 +54,34 @@ const processorMountRoot = normalizeMountRoot(
     '/host/users'
 );
 
-const processorUrl = (
-    process.env.PROCESSOR_URL ||
-    'http://127.0.0.1:5000/v1/process-path'
+const processorSubmitUrl = (
+    process.env.PROCESSOR_SUBMIT_URL ||
+    'http://127.0.0.1:5000/v1/process-path-async'
 ).replace(/\/+$/, '');
 
 
-console.log('Indexing request configuration:',processorUrl
-);
+/*
+ * These timeouts apply only to short submit/status requests.
+ * The long-running PaperMind processing happens asynchronously.
+ */
+const processorRequestTimeout =
+    parsePositiveNumber(
+        process.env.PROCESSOR_REQUEST_TIMEOUT_MS,
+        30000
+    );
 
-const processorTimeout = parsePositiveNumber(
-    process.env.PROCESSOR_TIMEOUT_MS,
-    600000
-);
+const processorPollInterval =
+    parsePositiveNumber(
+        process.env.PROCESSOR_POLL_INTERVAL_MS,
+        5000
+    );
+
+const processorMaximumWait =
+    parsePositiveNumber(
+        process.env.PROCESSOR_MAX_WAIT_MS,
+        7200000
+    );
+
 
 const processorUseLlm = parseBoolean(
     process.env.PROCESSOR_USE_LLM,
@@ -102,7 +125,7 @@ const indexingMaximumWait =
 const indexingMaximumStatusErrors =
     parsePositiveInteger(
         process.env.INDEXING_MAX_STATUS_ERRORS,
-        3
+        1
     );
 
 /*
@@ -144,7 +167,7 @@ if (!ingestApiKey) {
 
 const ingestTimeout = parsePositiveNumber(
     process.env.INGEST_TIMEOUT_MS,
-    600000
+    0
 );
 
 /*
@@ -181,9 +204,30 @@ const chunksFilePollInterval =
 const redisConnection =
     createWorkerRedisConnection();
 
+const workerConcurrency =
+    parsePositiveInteger(
+        process.env.DOCUMENT_WORKER_CONCURRENCY,
+        1
+    );
+
 console.log('Worker configuration:');
 console.log('UPLOAD_DIR:', uploadDir);
-console.log('PROCESSOR_URL:', processorUrl);
+console.log(
+    'PROCESSOR_SUBMIT_URL:',
+    processorSubmitUrl
+);
+console.log(
+    'PROCESSOR_REQUEST_TIMEOUT_MS:',
+    processorRequestTimeout
+);
+console.log(
+    'PROCESSOR_POLL_INTERVAL_MS:',
+    processorPollInterval
+);
+console.log(
+    'PROCESSOR_MAX_WAIT_MS:',
+    processorMaximumWait
+);
 console.log(
     'PROCESSOR_MOUNT_ROOT:',
     processorMountRoot
@@ -202,6 +246,10 @@ console.log('INGEST_DRY_RUN:', ingestDryRun);
 console.log(
     'EXPECTED_EMBEDDING_DIMENSIONS:',
     expectedEmbeddingDimensions
+);
+console.log(
+    'DOCUMENT_WORKER_CONCURRENCY:',
+    workerConcurrency
 );
 
 function parseBoolean(value, defaultValue) {
@@ -558,87 +606,20 @@ async function getDirectoryEntries(
 }
 
 /**
- * Task 1: run PaperMind.
+ * Submit a PaperMind asynchronous path-processing job.
  *
- * PaperMind creates:
- *
- * pdfMind_<filename>
- *
- * The worker does not create or save agent-result.json.
+ * The backend-generated job ID is included in the request. PaperMind reports
+ * running/completed/failed transitions to the backend callback endpoint, which
+ * stores the canonical state in shared Redis.
  */
-async function runPaperMind({
-    inputFilename,
-    localDocumentDirectory,
-    localPaperMindDirectory,
-    paperMindFolderName
-}) {
-    /*
-     * Makes BullMQ retries safer. If PaperMind already
-     * completed and overwrite is disabled, skip this step.
-     */
-    if (!processorOverwrite) {
-        const existingEntries =
-            await getDirectoryEntries(
-                localPaperMindDirectory
-            );
-
-        if (
-            existingEntries &&
-            existingEntries.length > 0
-        ) {
-            console.log(
-                'PaperMind output already exists; skipping:',
-                localPaperMindDirectory
-            );
-
-            return {
-                skipped: true,
-                outputDirectory:
-                    localPaperMindDirectory,
-                generatedEntries:
-                    existingEntries
-            };
-        }
-    }
-
-    const processorDocumentDirectory =
-        getProcessorPath(
-            localDocumentDirectory
-        );
-
-    const requestBody = {
-        input_directory:
-            processorDocumentDirectory,
-
-        input_filename:
-            inputFilename,
-
-        output_directory:
-            processorDocumentDirectory,
-
-        output_folder:
-            paperMindFolderName,
-
-        use_llm:
-            processorUseLlm,
-
-        overwrite:
-            processorOverwrite
-    };
-
-    console.log(
-        'Sending PaperMind request to:',
-        processorUrl
-    );
-
-    console.log(
-        'PaperMind request:',
-        requestBody
-    );
+async function submitPaperMindJob(
+    requestBody
+) {
+    let response;
 
     try {
-        await axios.post(
-            processorUrl,
+        response = await axios.post(
+            processorSubmitUrl,
             requestBody,
             {
                 headers: {
@@ -650,7 +631,7 @@ async function runPaperMind({
                 },
 
                 timeout:
-                    processorTimeout,
+                    processorRequestTimeout,
 
                 maxBodyLength:
                     Infinity,
@@ -659,18 +640,370 @@ async function runPaperMind({
                     Infinity,
 
                 validateStatus: status =>
-                    status >= 200 &&
-                    status < 300
+                    status === 200 ||
+                    status === 202
             }
         );
     } catch (error) {
         throw new Error(
             getAxiosError(
                 error,
-                'PaperMind'
+                'PaperMind job submission'
             )
         );
     }
+
+    const submittedJob =
+        response.data;
+
+    if (
+        !submittedJob ||
+        !submittedJob.job_id
+    ) {
+        throw new Error(
+            'PaperMind did not return a job_id'
+        );
+    }
+
+    return submittedJob;
+}
+
+/**
+ * Wait for PaperMind lifecycle callbacks recorded in backend Redis.
+ *
+ * The worker never calls PaperMind GET /v1/jobs/{job_id}. This removes the
+ * requirement that status polling return to the same agent-api replica that
+ * accepted the job.
+ */
+async function waitForBackendPaperMindJob({
+    backendJobId,
+    bullJob
+}) {
+    const startedAt =
+        Date.now();
+
+    let lastStatus = null;
+    let lastStage = null;
+
+    while (true) {
+        const elapsedTime =
+            Date.now() - startedAt;
+
+        if (
+            elapsedTime >
+            processorMaximumWait
+        ) {
+            throw new Error(
+                `PaperMind job timed out after ` +
+                `${processorMaximumWait}ms: ` +
+                backendJobId
+            );
+        }
+
+        const record =
+            await getPaperMindJob(
+                backendJobId
+            );
+
+        if (!record) {
+            throw new Error(
+                `Backend PaperMind job record was lost: ` +
+                backendJobId
+            );
+        }
+
+        const status = String(
+            record.status || ''
+        )
+            .trim()
+            .toLowerCase();
+
+        const stage = String(
+            record.stage || ''
+        )
+            .trim()
+            .toLowerCase();
+
+        if (
+            status !== lastStatus ||
+            stage !== lastStage
+        ) {
+            console.log(
+                `PaperMind backend job ${backendJobId}:`,
+                {
+                    agentJobId:
+                        record.agentJobId,
+
+                    status,
+
+                    stage:
+                        stage || null,
+
+                    progress:
+                        record.progress,
+
+                    updatedAt:
+                        record.updatedAt
+                }
+            );
+
+            lastStatus = status;
+            lastStage = stage;
+        }
+
+        if (status === 'completed') {
+            return record;
+        }
+
+        if (status === 'failed') {
+            throw new Error(
+                record.error ||
+                (
+                    `PaperMind job failed: ` +
+                    backendJobId
+                )
+            );
+        }
+
+        if (
+            status !== 'queued' &&
+            status !== 'running'
+        ) {
+            throw new Error(
+                `Unknown backend PaperMind job status: ` +
+                status
+            );
+        }
+
+        const mappedProgress =
+            Math.min(
+                54,
+                Math.max(
+                    10,
+                    10 + Math.round(
+                        Number(record.progress || 0) *
+                        0.44
+                    )
+                )
+            );
+
+        await bullJob.updateProgress(
+            mappedProgress
+        );
+
+        await delay(
+            processorPollInterval
+        );
+    }
+}
+
+/**
+ * Task 1: submit PaperMind work and wait on backend Redis state.
+ */
+async function runPaperMind({
+    inputFilename,
+    localDocumentDirectory,
+    localPaperMindDirectory,
+    paperMindFolderName,
+    bullJob
+}) {
+    /*
+     * A canonical document is the completion marker. A merely non-empty
+     * directory may contain partial output from an interrupted job.
+     */
+    const completionFile =
+        path.join(
+            localPaperMindDirectory,
+            'canonical_document.json'
+        );
+
+    if (
+        !processorOverwrite &&
+        fs.existsSync(completionFile)
+    ) {
+        const existingEntries =
+            await fs.promises.readdir(
+                localPaperMindDirectory
+            );
+
+        console.log(
+            'PaperMind canonical output already exists; skipping:',
+            localPaperMindDirectory
+        );
+
+        return {
+            skipped: true,
+            backendJobId:
+                bullJob.data?.paperMindBackendJobId ||
+                null,
+            jobId:
+                bullJob.data?.paperMindAgentJobId ||
+                null,
+            outputDirectory:
+                localPaperMindDirectory,
+            generatedEntries:
+                existingEntries,
+            result:
+                null
+        };
+    }
+
+    const processorDocumentDirectory =
+        getProcessorPath(
+            localDocumentDirectory
+        );
+
+    let backendJobId =
+        bullJob.data?.paperMindBackendJobId;
+
+    if (!backendJobId) {
+        backendJobId =
+            `papermind-${bullJob.id}`;
+
+        await bullJob.updateData({
+            ...bullJob.data,
+
+            paperMindBackendJobId:
+                backendJobId
+        });
+    }
+
+    let backendRecord =
+        await getPaperMindJob(
+            backendJobId
+        );
+
+    if (!backendRecord) {
+        backendRecord =
+            await createPaperMindJob({
+                backendJobId,
+                bullJobId:
+                    bullJob.id,
+                documentId:
+                    bullJob.data.documentId,
+                userId:
+                    bullJob.data.userId
+            });
+    }
+
+    let shouldSubmit =
+        !backendRecord.agentJobId;
+
+    if (backendRecord.status === 'failed') {
+        backendRecord =
+            await resetPaperMindJob(
+                backendJobId
+            );
+
+        shouldSubmit = true;
+    }
+
+    let submittedPaperMindJob = null;
+
+    if (shouldSubmit) {
+        const requestBody = {
+            backend_job_id:
+                backendJobId,
+
+            input_directory:
+                processorDocumentDirectory,
+
+            input_filename:
+                inputFilename,
+
+            output_directory:
+                processorDocumentDirectory,
+
+            output_folder:
+                paperMindFolderName,
+
+            use_llm:
+                processorUseLlm,
+
+            overwrite:
+                processorOverwrite
+        };
+
+        console.log(
+            'Submitting PaperMind job to:',
+            processorSubmitUrl
+        );
+
+        console.log(
+            'PaperMind backend-managed request:',
+            requestBody
+        );
+
+        try {
+            submittedPaperMindJob =
+                await submitPaperMindJob(
+                    requestBody
+                );
+        } catch (error) {
+            await updatePaperMindJob(
+                backendJobId,
+                {
+                    status: 'failed',
+                    stage: 'submission',
+                    progress: 100,
+                    error:
+                        error instanceof Error
+                            ? error.message
+                            : String(error)
+                }
+            );
+
+            throw error;
+        }
+
+        await updatePaperMindJob(
+            backendJobId,
+            {
+                agentJobId:
+                    submittedPaperMindJob.job_id
+            }
+        );
+
+        await bullJob.updateData({
+            ...bullJob.data,
+
+            paperMindBackendJobId:
+                backendJobId,
+
+            paperMindAgentJobId:
+                submittedPaperMindJob.job_id
+        });
+
+        console.log(
+            'PaperMind job accepted:',
+            {
+                backendJobId,
+                ...submittedPaperMindJob
+            }
+        );
+    } else {
+        console.log(
+            'Resuming backend-managed PaperMind job:',
+            {
+                backendJobId,
+                agentJobId:
+                    backendRecord.agentJobId,
+                status:
+                    backendRecord.status
+            }
+        );
+    }
+
+    const completedPaperMindJob =
+        await waitForBackendPaperMindJob({
+            backendJobId,
+            bullJob
+        });
+
+    console.log(
+        'PaperMind backend-managed job completed:',
+        completedPaperMindJob
+    );
 
     let outputStats;
 
@@ -697,22 +1030,38 @@ async function runPaperMind({
         );
     }
 
+    if (!fs.existsSync(completionFile)) {
+        throw new Error(
+            `PaperMind reported completion but did not create: ` +
+            completionFile
+        );
+    }
+
     const generatedEntries =
         await fs.promises.readdir(
             localPaperMindDirectory
         );
 
-    if (generatedEntries.length === 0) {
-        throw new Error(
-            `PaperMind created an empty output directory: ` +
-            localPaperMindDirectory
-        );
-    }
-
     return {
         skipped: false,
+
+        backendJobId,
+
+        jobId:
+            completedPaperMindJob.agentJobId,
+
+        submittedJob:
+            submittedPaperMindJob,
+
+        completedJob:
+            completedPaperMindJob,
+
+        result:
+            completedPaperMindJob.result,
+
         outputDirectory:
             localPaperMindDirectory,
+
         generatedEntries
     };
 }
@@ -1350,7 +1699,9 @@ const worker = new Worker(
                 inputFilename,
                 localDocumentDirectory,
                 localPaperMindDirectory,
-                paperMindFolderName
+                paperMindFolderName,
+                bullJob:
+                    job
             });
 
         console.log(
@@ -1515,6 +1866,10 @@ const worker = new Worker(
             inputFilename,
 
             paperMind: {
+                jobId:
+                    paperMindResult.jobId ||
+                    null,
+
                 folderName:
                     paperMindFolderName,
 
@@ -1526,7 +1881,21 @@ const worker = new Worker(
 
                 generatedEntries:
                     paperMindResult
-                        .generatedEntries
+                        .generatedEntries,
+
+                submittedJob:
+                    paperMindResult
+                        .submittedJob ||
+                    null,
+
+                completedJob:
+                    paperMindResult
+                        .completedJob ||
+                    null,
+
+                result:
+                    paperMindResult.result ||
+                    null
             },
 
             indexing: {
@@ -1582,7 +1951,7 @@ const worker = new Worker(
             redisConnection,
 
         concurrency:
-            1
+            workerConcurrency
     }
 );
 
@@ -1741,6 +2110,7 @@ async function shutdown(signal) {
     try {
         await worker.close();
         await redisConnection.quit();
+        await closePaperMindJobStore();
 
         console.log(
             'Worker closed successfully'

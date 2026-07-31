@@ -30,6 +30,17 @@ class PathProcessRequest(BaseModel):
     overwrite: bool | None = None
 
 
+class BackendManagedPathProcessRequest(PathProcessRequest):
+    """Path request whose lifecycle is tracked by the DocuMind backend."""
+
+    backend_job_id: str = Field(
+        min_length=1,
+        max_length=200,
+        pattern=r"^[A-Za-z0-9._:-]+$",
+        description="Backend-generated correlation ID used for callbacks.",
+    )
+
+
 class ProcessResponse(BaseModel):
     schema_version: str = "0.3.0"
     status: Literal["completed", "completed_with_warnings", "failed"]
@@ -45,3 +56,24 @@ class ProcessResponse(BaseModel):
     counts: dict[str, int] = Field(default_factory=dict)
     warnings: list[str] = Field(default_factory=list)
     processing: dict[str, Any] = Field(default_factory=dict)
+
+
+class JobAcceptedResponse(BaseModel):
+    job_id: str
+    document_id: str
+    filename: str
+    status: Literal["queued"] = "queued"
+    status_url: str
+
+
+class JobStatusResponse(BaseModel):
+    job_id: str
+    document_id: str
+    filename: str
+    status: Literal["queued", "running", "completed", "failed"]
+    status_url: str
+    created_at: str
+    started_at: str | None = None
+    finished_at: str | None = None
+    result: ProcessResponse | None = None
+    error: str | None = None
