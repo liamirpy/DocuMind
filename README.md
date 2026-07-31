@@ -4,7 +4,7 @@ DocuMind is a self-hosted document intelligence and question-answering platform 
 
 The repository is a multi-service application composed of a Next.js frontend, an Express API, BullMQ background workers, PaperMind PDF-processing services, an indexer, an ingester, PostgreSQL, Redis, OpenSearch, Ollama, and Nginx.
 
-> **Demo video:** [Watch DocuMind in action]()
+> **Demo video:** [Watch DocuMind in action](https://youtu.be/XaCr_LLDI0k)
 
 ## Table of contents
 
@@ -1245,14 +1245,3 @@ Additional details are available in:
 - `postgreSQL/README.md`
 - `opensearch/README.md`
 - `frontend/README.md`
-
-## Contributing
-
-1. Create a feature branch.
-2. Keep credentials, uploaded documents, generated packages, model caches, and build output out of Git.
-3. Add or update tests for behavioral changes.
-4. Run the relevant component checks locally.
-5. Validate the root Compose configuration.
-6. Open a pull request and wait for CI to pass.
-
-A root license file is not currently included. Add an explicit license before distributing the repository publicly.
