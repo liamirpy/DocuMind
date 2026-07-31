@@ -234,6 +234,9 @@ jobs:
           DB_NAME: documind
         run: |
           set -Eeuo pipefail
+          import {
+            closePaperMindJobStore,
+          } from "./src/services/papermindJobStore.js";
 
           timeout 30s node --env-file=.env --input-type=module <<'NODE'
           let documentQueue;

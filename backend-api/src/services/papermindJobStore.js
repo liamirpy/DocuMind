@@ -1,34 +1,39 @@
-import 'dotenv/config';
-
 import {
   createStateRedisConnection,
-} from '../queues/redisConnection.js';
+} from "../queues/redisConnection.js";
 
-const redis = createStateRedisConnection();
+let redisConnection = null;
 
-const parsedTtl = Number.parseInt(
-  process.env.PAPERMIND_JOB_TTL_SECONDS || '86400',
-  10,
-);
+const parsedTtlSeconds =
+  Number.parseInt(
+    process.env.PAPERMIND_JOB_TTL_SECONDS ||
+      "86400",
+    10,
+  );
 
 const jobTtlSeconds =
-  Number.isInteger(parsedTtl) && parsedTtl > 0
-    ? parsedTtl
+  Number.isFinite(parsedTtlSeconds) &&
+  parsedTtlSeconds > 0
+    ? parsedTtlSeconds
     : 86400;
+
+function getRedisConnection() {
+  if (
+    !redisConnection ||
+    redisConnection.status === "end"
+  ) {
+    redisConnection =
+      createStateRedisConnection();
+  }
+
+  return redisConnection;
+}
 
 function getJobKey(backendJobId) {
   return `papermind:job:${backendJobId}`;
 }
 
-function stringifyResult(value) {
-  if (value === undefined || value === null) {
-    return '';
-  }
-
-  return JSON.stringify(value);
-}
-
-function parseResult(value) {
+function parseJson(value) {
   if (!value) {
     return null;
   }
@@ -41,7 +46,18 @@ function parseResult(value) {
 }
 
 function flattenFields(fields) {
-  return Object.entries(fields).flatMap(([key, value]) => [key, String(value)]);
+  const values = [];
+
+  for (const [field, value] of Object.entries(fields)) {
+    values.push(
+      field,
+      value === null || value === undefined
+        ? ""
+        : String(value),
+    );
+  }
+
+  return values;
 }
 
 export async function createPaperMindJob({
@@ -50,8 +66,14 @@ export async function createPaperMindJob({
   documentId,
   userId,
 }) {
-  const now = new Date().toISOString();
-  const key = getJobKey(backendJobId);
+  const redis =
+    getRedisConnection();
+
+  const key =
+    getJobKey(backendJobId);
+
+  const now =
+    new Date().toISOString();
 
   await redis.hset(
     key,
@@ -60,105 +82,163 @@ export async function createPaperMindJob({
       bull_job_id: bullJobId,
       document_id: documentId,
       user_id: userId,
-      agent_job_id: '',
-      status: 'queued',
-      stage: 'queued',
-      progress: '0',
-      result: '',
-      error: '',
+      agent_job_id: "",
+      status: "submitting",
+      stage: "",
+      progress: 0,
+      result: "",
+      error: "",
       created_at: now,
       updated_at: now,
     }),
   );
 
-  await redis.expire(key, jobTtlSeconds);
-  return getPaperMindJob(backendJobId);
-}
+  await redis.expire(
+    key,
+    jobTtlSeconds,
+  );
 
-export async function resetPaperMindJob(backendJobId) {
-  const existing = await getPaperMindJob(backendJobId);
-
-  if (!existing) {
-    return null;
-  }
-
-  return updatePaperMindJob(backendJobId, {
-    agentJobId: null,
-    status: 'queued',
-    stage: 'queued',
-    progress: 0,
-    result: null,
-    error: null,
-  });
+  return getPaperMindJob(
+    backendJobId,
+  );
 }
 
 export async function updatePaperMindJob(
   backendJobId,
   changes,
 ) {
-  const key = getJobKey(backendJobId);
+  const redis =
+    getRedisConnection();
+
+  const key =
+    getJobKey(backendJobId);
+
   const fields = {
-    updated_at: new Date().toISOString(),
+    updated_at:
+      new Date().toISOString(),
   };
 
-  if (changes.agentJobId !== undefined) {
-    fields.agent_job_id = changes.agentJobId || '';
-  }
-  if (changes.status !== undefined) {
-    fields.status = changes.status || '';
-  }
-  if (changes.stage !== undefined) {
-    fields.stage = changes.stage || '';
-  }
-  if (changes.progress !== undefined) {
-    fields.progress = Number.isFinite(Number(changes.progress))
-      ? String(changes.progress)
-      : '0';
-  }
-  if (changes.result !== undefined) {
-    fields.result = stringifyResult(changes.result);
-  }
-  if (changes.error !== undefined) {
-    fields.error = changes.error || '';
+  for (
+    const [field, value]
+    of Object.entries(changes)
+  ) {
+    if (value === undefined) {
+      continue;
+    }
+
+    if (field === "result") {
+      fields.result =
+        value === null
+          ? ""
+          : JSON.stringify(value);
+
+      continue;
+    }
+
+    fields[field] =
+      value === null
+        ? ""
+        : value;
   }
 
-  await redis.hset(key, ...flattenFields(fields));
-  await redis.expire(key, jobTtlSeconds);
+  await redis.hset(
+    key,
+    ...flattenFields(fields),
+  );
 
-  return getPaperMindJob(backendJobId);
+  await redis.expire(
+    key,
+    jobTtlSeconds,
+  );
+
+  return getPaperMindJob(
+    backendJobId,
+  );
 }
 
-export async function getPaperMindJob(backendJobId) {
-  const record = await redis.hgetall(getJobKey(backendJobId));
+export async function getPaperMindJob(
+  backendJobId,
+) {
+  const redis =
+    getRedisConnection();
+
+  const record =
+    await redis.hgetall(
+      getJobKey(backendJobId),
+    );
 
   if (!record.backend_job_id) {
     return null;
   }
 
   return {
-    backendJobId: record.backend_job_id,
-    bullJobId: record.bull_job_id,
-    documentId: record.document_id,
-    userId: record.user_id,
-    agentJobId: record.agent_job_id || null,
-    status: record.status || 'queued',
-    stage: record.stage || null,
-    progress: Number(record.progress) || 0,
-    result: parseResult(record.result),
-    error: record.error || null,
-    createdAt: record.created_at,
-    updatedAt: record.updated_at,
+    backendJobId:
+      record.backend_job_id,
+
+    bullJobId:
+      record.bull_job_id || null,
+
+    documentId:
+      record.document_id || null,
+
+    userId:
+      record.user_id || null,
+
+    agentJobId:
+      record.agent_job_id || null,
+
+    status:
+      record.status || null,
+
+    stage:
+      record.stage || null,
+
+    progress:
+      Number(record.progress) || 0,
+
+    result:
+      parseJson(record.result),
+
+    error:
+      record.error || null,
+
+    createdAt:
+      record.created_at || null,
+
+    updatedAt:
+      record.updated_at || null,
   };
 }
 
 export async function closePaperMindJobStore() {
-  if (redis.status === 'end') {
+  const connection =
+    redisConnection;
+
+  redisConnection = null;
+
+  if (!connection) {
+    return;
+  }
+
+  if (connection.status === "end") {
     return;
   }
 
   try {
-    await redis.quit();
-  } catch {
-    redis.disconnect();
+    if (
+      connection.status === "ready" ||
+      connection.status === "connect"
+    ) {
+      await connection.quit();
+    } else {
+      connection.disconnect();
+    }
+  } catch (error) {
+    console.warn(
+      "[Redis:papermind-state] Graceful shutdown failed:",
+      error.message,
+    );
+
+    connection.disconnect();
   }
 }
