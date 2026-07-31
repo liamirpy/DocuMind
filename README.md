@@ -4,7 +4,7 @@ DocuMind is a self-hosted document intelligence and question-answering platform 
 
 The repository is a multi-service application composed of a Next.js frontend, an Express API, BullMQ background workers, PaperMind PDF-processing services, an indexer, an ingester, PostgreSQL, Redis, OpenSearch, Ollama, and Nginx.
 
-> **Demo video:** [Watch DocuMind in action](VIDEO_LINK_HERE)
+> **Demo video:** [Watch DocuMind in action]()
 
 ## Table of contents
 
